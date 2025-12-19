@@ -1000,9 +1000,9 @@ ${message}
                         </span>
                     </td>
                     <td class="model-actions">
-                        ${!model.is_active ? `<button class="btn btn-primary" onclick="App.setActiveModel(${model.id})。激活</button>` : ''}
-                        <button class="btn" onclick="App.editAIModel(${model.id})"。编辑</button>
-                        <button class="btn" onclick="App.deleteAIModel(${model.id})"。删除</button>
+                        ${!model.is_active ? `<button class="btn btn-primary" onclick="App.setActiveModel(${model.id})">激活</button>` : '<span class="model-status active">当前激活</span>'}
+                        <button class="btn" onclick="App.editAIModel(${model.id})">编辑</button>
+                        <button class="btn" onclick="App.deleteAIModel(${model.id})">删除</button>
                     </td>
                 </tr>
             `).join('');
