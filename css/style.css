@@ -1,0 +1,801 @@
+/* 全局样式和CSS变量 */
+:root {
+    --primary-color: #2564cf;
+    --primary-hover: #1e54b7;
+    --danger-color: #d13438;
+    --success-color: #107c10;
+    --warning-color: #faa81a;
+    --text-primary: #201f1e;
+    --text-secondary: #605e5c;
+    --text-tertiary: #8a8886;
+    --bg-primary: #ffffff;
+    --bg-secondary: #faf9f8;
+    --bg-hover: #f3f2f1;
+    --border-color: #edebe9;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
+}
+
+/* 应用容器 */
+.app-container {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* 侧边栏 */
+.sidebar {
+    width: 280px;
+    background-color: var(--bg-primary);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.app-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.app-title .icon {
+    width: 24px;
+    height: 24px;
+    stroke-width: 2;
+}
+
+/* 导航 */
+.sidebar-nav {
+    flex: 1;
+    padding: 10px;
+}
+
+.nav-section {
+    margin-bottom: 20px;
+}
+
+.nav-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 2px;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+}
+
+.nav-item:hover {
+    background-color: var(--bg-hover);
+}
+
+.nav-item.active {
+    background-color: var(--bg-hover);
+    font-weight: 600;
+}
+
+.nav-item .icon {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+    flex-shrink: 0;
+}
+
+.nav-item span:first-of-type {
+    flex: 1;
+}
+
+.task-count {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    padding: 2px 8px;
+    background-color: var(--bg-secondary);
+    border-radius: 12px;
+}
+
+/* 自定义列表项容器 */
+.custom-list-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.custom-list-item .nav-item {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+/* 删除列表按钮 */
+.btn-delete-list {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    margin-left: 4px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-tertiary);
+    transition: all 0.2s;
+}
+
+.btn-delete-list:hover {
+    background-color: var(--bg-hover);
+    color: var(--danger-color);
+}
+
+.btn-delete-list .icon {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
+}
+
+/* 主内容区 */
+.main-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.task-list-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 30px 40px;
+    max-width: 800px;
+}
+
+.task-list-header {
+    margin-bottom: 30px;
+}
+
+.view-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.view-info {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* 任务列表 */
+.task-list {
+    margin-bottom: 20px;
+}
+
+.task-group {
+    margin-bottom: 30px;
+}
+
+.task-group-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    padding-left: 4px;
+}
+
+.task-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    margin-bottom: 2px;
+    background-color: var(--bg-primary);
+    border-radius: 8px;
+    cursor: move;
+    transition: all 0.2s;
+}
+
+.task-item:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.task-item.completed .task-title {
+    text-decoration: line-through;
+    color: var(--text-tertiary);
+}
+
+.task-checkbox {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--text-tertiary);
+    border-radius: 50%;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: all 0.2s;
+}
+
+.task-checkbox:hover {
+    border-color: var(--primary-color);
+}
+
+.task-checkbox.checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    position: relative;
+}
+
+.task-checkbox.checked::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.task-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.task-title {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    word-wrap: break-word;
+    margin-bottom: 4px;
+}
+
+.task-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+.task-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.task-meta-item .icon {
+    width: 14px;
+    height: 14px;
+}
+
+.task-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.task-item:hover .task-actions {
+    opacity: 1;
+}
+
+/* 拖拽相关样式 */
+.task-item.dragging {
+    opacity: 0.5;
+    cursor: move;
+}
+
+.custom-list-item.drag-over {
+    background-color: var(--bg-hover);
+    border-radius: 6px;
+}
+
+.custom-list-item.drag-over .nav-item {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.custom-list-item.drag-over .nav-item .icon {
+    stroke: white;
+}
+
+.custom-list-item.drag-over .task-count {
+    background-color: rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+.btn-star {
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    transition: all 0.2s;
+}
+
+.btn-star:hover {
+    background-color: var(--bg-hover);
+}
+
+.btn-star.active {
+    color: var(--warning-color);
+    fill: var(--warning-color);
+}
+
+.btn-star .icon {
+    width: 18px;
+    height: 18px;
+}
+
+/* 添加任务表单 */
+.add-task-form {
+    margin-top: 10px;
+}
+
+.add-task-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+}
+
+.add-task-btn:hover {
+    background-color: var(--bg-primary);
+}
+
+.add-task-btn .icon {
+    width: 18px;
+    height: 18px;
+}
+
+.add-task-input-wrapper {
+    padding: 16px;
+    background-color: var(--bg-primary);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+}
+
+.add-task-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    margin-bottom: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.add-task-input:focus {
+    border-color: var(--primary-color);
+}
+
+.add-task-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* 任务详情面板 */
+.task-detail-panel {
+    width: 400px;
+    background-color: var(--bg-primary);
+    border-left: 1px solid var(--border-color);
+    overflow-y: auto;
+}
+
+.task-detail-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.task-detail-content {
+    padding: 20px;
+}
+
+.detail-section {
+    margin-bottom: 24px;
+}
+
+.detail-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    padding: 12px;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: text;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.detail-title:hover,
+.detail-title:focus {
+    background-color: var(--bg-hover);
+    outline: none;
+}
+
+.detail-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.detail-field {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.detail-field:hover {
+    background-color: var(--bg-hover);
+}
+
+.detail-field .icon {
+    width: 20px;
+    height: 20px;
+    color: var(--text-tertiary);
+}
+
+.detail-textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.detail-textarea:focus {
+    border-color: var(--primary-color);
+}
+
+.steps-list {
+    margin-top: 8px;
+}
+
+.step-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.step-item:hover {
+    background-color: var(--bg-hover);
+}
+
+.step-checkbox {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--text-tertiary);
+    border-radius: 3px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.step-checkbox.checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.step-title {
+    flex: 1;
+    font-size: 14px;
+}
+
+.step-item.completed .step-title {
+    text-decoration: line-through;
+    color: var(--text-tertiary);
+}
+
+.add-step-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    margin-top: 8px;
+    outline: none;
+}
+
+/* 列表详情面板 */
+.list-detail-panel {
+    width: 400px;
+    background-color: var(--bg-primary);
+    border-left: 1px solid var(--border-color);
+    overflow-y: auto;
+}
+
+.list-detail-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.list-detail-content {
+    padding: 20px;
+}
+
+.list-name-input {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    padding: 12px;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: text;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.list-name-input:hover,
+.list-name-input:focus {
+    background-color: var(--bg-hover);
+    outline: none;
+}
+
+.list-info-section {
+    margin-bottom: 20px;
+    padding: 16px;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.list-info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.list-info-item:last-child {
+    margin-bottom: 0;
+}
+
+.list-info-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.list-info-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* 按钮 */
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.btn:hover {
+    background-color: var(--border-color);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    background-color: var(--bg-hover);
+}
+
+.btn-icon .icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* 图标 */
+.icon {
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* 加载动画 */
+.loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Toast 提示 */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    padding: 12px 20px;
+    background-color: var(--text-primary);
+    color: white;
+    border-radius: 6px;
+    box-shadow: var(--shadow-lg);
+    font-size: 14px;
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 1001;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-tertiary);
+}
+
+.empty-state .icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+    opacity: 0.5;
+}
+
+.empty-state-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.empty-state-text {
+    font-size: 14px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 240px;
+    }
+    
+    .task-list-container {
+        padding: 20px;
+    }
+    
+    .view-title {
+        font-size: 24px;
+    }
+    
+    .task-detail-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        max-width: 400px;
+        z-index: 100;
+    }
+}

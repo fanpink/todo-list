@@ -1,0 +1,925 @@
+/**
+ * 主应用逻辑
+ * 处理UI交互和业务逻辑
+ */
+
+const App = {
+    // 应用状态
+    state: {
+        currentView: 'my-day',
+        currentListId: null,
+        lists: [],
+        tasks: [],
+        selectedTask: null
+    },
+
+    // 初始化应用
+    async init() {
+        await this.loadLists();
+        this.bindEvents();
+        this.switchView('my-day');
+        this.updateCurrentDate();
+        
+        // 每分钟更新一次日期显示
+        setInterval(() => this.updateCurrentDate(), 60000);
+    },
+
+    // 绑定事件
+    bindEvents() {
+        // 导航切换
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const view = e.currentTarget.dataset.view;
+                const listId = e.currentTarget.dataset.listId;
+                
+                if (view) {
+                    this.switchView(view, listId);
+                }
+            });
+        });
+
+        // 添加列表
+        document.getElementById('btn-add-list').addEventListener('click', () => {
+            this.showAddListDialog();
+        });
+
+        // 添加任务按钮
+        document.getElementById('btn-add-task').addEventListener('click', () => {
+            document.getElementById('btn-add-task').style.display = 'none';
+            document.getElementById('add-task-input-wrapper').style.display = 'block';
+            document.getElementById('add-task-input').focus();
+        });
+
+        // 保存任务
+        document.getElementById('btn-save-task').addEventListener('click', () => {
+            this.createTask();
+        });
+
+        // 取消添加任务
+        document.getElementById('btn-cancel-task').addEventListener('click', () => {
+            document.getElementById('add-task-input').value = '';
+            document.getElementById('add-task-input-wrapper').style.display = 'none';
+            document.getElementById('btn-add-task').style.display = 'flex';
+        });
+
+        // 任务输入框回车
+        document.getElementById('add-task-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.createTask();
+            }
+        });
+
+        // 关闭任务详情
+        document.getElementById('btn-close-detail').addEventListener('click', () => {
+            this.closeTaskDetail();
+        });
+        
+        // 关闭列表详情
+        document.getElementById('btn-close-list-detail').addEventListener('click', () => {
+            this.closeListDetail();
+        });
+    },
+
+    // 加载列表
+    async loadLists() {
+        try {
+            const result = await API.getLists();
+            this.state.lists = result.data;
+            this.renderCustomLists();
+            this.updateTaskCounts();
+        } catch (error) {
+            console.error('加载列表失败:', error);
+            this.showError('加载列表失败', error.message);
+        }
+    },
+
+    // 渲染自定义列表
+    renderCustomLists() {
+        const container = document.getElementById('custom-lists');
+        const customLists = this.state.lists.filter(list => !list.is_system);
+        
+        container.innerHTML = customLists.map(list => `
+            <div class="custom-list-item" data-list-id="${list.id}">
+                <button class="nav-item" data-view="list" data-list-id="${list.id}">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M3 3h18v18H3z"></path>
+                    </svg>
+                    <span>${this.escapeHtml(list.name)}</span>
+                    <span class="task-count">${list.task_count || 0}</span>
+                </button>
+                <button class="btn-delete-list" data-list-id="${list.id}" title="删除列表" style="display: none;">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                </button>
+            </div>
+        `).join('');
+
+        // 绑定列表项点击事件
+        container.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const listId = e.currentTarget.dataset.listId;
+                this.switchView('list', listId);
+            });
+        });
+        
+        // 绑定删除按钮事件
+        container.querySelectorAll('.btn-delete-list').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const listId = e.currentTarget.dataset.listId;
+                await this.deleteList(listId);
+            });
+        });
+        
+        // 绑定列表项的拖放事件
+        container.querySelectorAll('.custom-list-item').forEach(listItem => {
+            const listId = listItem.dataset.listId;
+            
+            listItem.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                listItem.classList.add('drag-over');
+            });
+            
+            listItem.addEventListener('dragleave', (e) => {
+                if (e.target === listItem || !listItem.contains(e.relatedTarget)) {
+                    listItem.classList.remove('drag-over');
+                }
+            });
+            
+            listItem.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                listItem.classList.remove('drag-over');
+                
+                const taskId = e.dataTransfer.getData('text/plain');
+                if (taskId) {
+                    await this.moveTaskToList(taskId, listId);
+                }
+            });
+        });
+        
+        // 更新当前选中的列表的删除按钮显示状态
+        this.updateDeleteButtonVisibility();
+    },
+
+    // 切换视图
+    async switchView(view, listId = null) {
+        this.state.currentView = view;
+        this.state.currentListId = listId;
+
+        // 更新导航激活状态
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.remove('active');
+        });
+
+        if (view === 'list' && listId) {
+            document.querySelector(`[data-list-id="${listId}"]`).classList.add('active');
+        } else {
+            document.querySelector(`[data-view="${view}"]`)?.classList.add('active');
+        }
+        
+        // 更新删除按钮显示状态
+        this.updateDeleteButtonVisibility();
+
+        // 加载任务
+        await this.loadTasks();
+        this.closeTaskDetail();
+        
+        // 如果是自定义列表，显示列表详情
+        if (view === 'list' && listId) {
+            this.showListDetail(listId);
+        } else {
+            this.closeListDetail();
+        }
+    },
+    
+    // 更新删除按钮显示状态（只在选中的列表上显示）
+    updateDeleteButtonVisibility() {
+        // 隐藏所有删除按钮
+        document.querySelectorAll('.btn-delete-list').forEach(btn => {
+            btn.style.display = 'none';
+        });
+        
+        // 如果当前视图是自定义列表，显示对应的删除按钮
+        if (this.state.currentView === 'list' && this.state.currentListId) {
+            const deleteBtn = document.querySelector(`.custom-list-item[data-list-id="${this.state.currentListId}"] .btn-delete-list`);
+            if (deleteBtn) {
+                deleteBtn.style.display = 'flex';
+            }
+        }
+    },
+
+    // 加载任务
+    async loadTasks() {
+        try {
+            this.showLoading();
+
+            let options = {};
+            
+            if (this.state.currentView === 'list') {
+                options.list_id = this.state.currentListId;
+            } else if (this.state.currentView === 'tasks') {
+                options.list_id = 1; // 默认任务列表
+            } else {
+                options.view = this.state.currentView;
+            }
+
+            const result = await API.getTasks(options);
+            
+            // 处理计划内视图的分组数据
+            if (this.state.currentView === 'planned' && typeof result.data === 'object' && !Array.isArray(result.data)) {
+                this.renderPlannedTasks(result.data);
+            } else {
+                this.state.tasks = result.data;
+                this.renderTasks();
+            }
+
+            this.updateViewTitle();
+            this.hideLoading();
+        } catch (error) {
+            this.hideLoading();
+            console.error('加载任务失败:', error);
+            this.showError('加载任务失败', error.message);
+        }
+    },
+
+    // 渲染任务列表
+    renderTasks() {
+        const container = document.getElementById('task-list');
+        
+        if (!this.state.tasks || this.state.tasks.length === 0) {
+            container.innerHTML = this.renderEmptyState();
+            return;
+        }
+
+        container.innerHTML = this.state.tasks.map(task => this.renderTaskItem(task)).join('');
+        this.bindTaskEvents();
+    },
+
+    // 渲染计划内任务（分组）
+    renderPlannedTasks(grouped) {
+        const container = document.getElementById('task-list');
+        const groups = [
+            { key: 'overdue', title: '过期' },
+            { key: 'today', title: '今天' },
+            { key: 'tomorrow', title: '明天' },
+            { key: 'this_week', title: '本周' },
+            { key: 'later', title: '以后' }
+        ];
+
+        let html = '';
+        let isEmpty = true;
+
+        groups.forEach(group => {
+            const tasks = grouped[group.key] || [];
+            if (tasks.length > 0) {
+                isEmpty = false;
+                html += `
+                    <div class="task-group">
+                        <h3 class="task-group-title">${group.title}</h3>
+                        ${tasks.map(task => this.renderTaskItem(task)).join('')}
+                    </div>
+                `;
+            }
+        });
+
+        container.innerHTML = isEmpty ? this.renderEmptyState() : html;
+        this.bindTaskEvents();
+    },
+
+    // 渲染单个任务项
+    renderTaskItem(task) {
+        const dueDate = task.due_date ? this.formatDate(task.due_date) : '';
+        const stepsInfo = task.steps_total > 0 ? 
+            `<span class="task-meta-item">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="9 11 12 14 22 4"></polyline>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                </svg>
+                ${task.steps_completed}/${task.steps_total}
+            </span>` : '';
+
+        return `
+            <div class="task-item ${task.is_completed ? 'completed' : ''}" 
+                 data-task-id="${task.id}" 
+                 data-list-id="${task.list_id}"
+                 draggable="true">
+                <div class="task-checkbox ${task.is_completed ? 'checked' : ''}" data-task-id="${task.id}"></div>
+                <div class="task-content">
+                    <div class="task-title">${this.escapeHtml(task.title)}</div>
+                    ${(dueDate || stepsInfo) ? `
+                        <div class="task-meta">
+                            ${dueDate ? `<span class="task-meta-item">${dueDate}</span>` : ''}
+                            ${stepsInfo}
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="task-actions">
+                    <button class="btn-star ${task.is_important ? 'active' : ''}" data-task-id="${task.id}">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+    },
+
+    // 渲染空状态
+    renderEmptyState() {
+        const messages = {
+            'my-day': '今天还没有任务，添加一个开始吧！',
+            'important': '没有重要任务',
+            'planned': '没有计划内的任务',
+            'tasks': '还没有任务，创建一个开始吧！',
+            'completed': '还没有完成任何任务'
+        };
+
+        return `
+            <div class="empty-state">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 11l3 3L22 4"></path>
+                    <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                </svg>
+                <div class="empty-state-title">暂无任务</div>
+                <div class="empty-state-text">${messages[this.state.currentView] || '暂无任务'}</div>
+            </div>
+        `;
+    },
+
+    // 绑定任务事件
+    bindTaskEvents() {
+        // 先移除旧的事件监听器，避免重复绑定
+        const taskList = document.getElementById('task-list');
+        
+        // 使用事件委托，只在容器上绑定一次
+        // 移除旧的监听器（如果存在）
+        if (this._taskListHandler) {
+            taskList.removeEventListener('click', this._taskListHandler);
+        }
+        
+        // 创建新的事件处理器
+        this._taskListHandler = async (e) => {
+            // 处理复选框点击
+            if (e.target.classList.contains('task-checkbox')) {
+                e.stopPropagation();
+                const taskId = e.target.dataset.taskId;
+                const isCompleted = e.target.classList.contains('checked');
+                await this.toggleTaskComplete(taskId, !isCompleted);
+                return;
+            }
+            
+            // 处理星标点击
+            const starBtn = e.target.closest('.btn-star');
+            if (starBtn) {
+                e.stopPropagation();
+                const taskId = starBtn.dataset.taskId;
+                const isImportant = starBtn.classList.contains('active');
+                await this.toggleTaskImportant(taskId, !isImportant);
+                return;
+            }
+            
+            // 处理任务项点击
+            const taskItem = e.target.closest('.task-item');
+            if (taskItem && !e.target.closest('.task-checkbox') && !e.target.closest('.btn-star')) {
+                const taskId = taskItem.dataset.taskId;
+                this.showTaskDetail(taskId);
+            }
+        };
+        
+        // 绑定事件委托
+        taskList.addEventListener('click', this._taskListHandler);
+        
+        // 绑定拖拽事件
+        this.bindDragEvents();
+    },
+    
+    // 绑定拖拽事件
+    bindDragEvents() {
+        const taskItems = document.querySelectorAll('.task-item');
+        
+        taskItems.forEach(item => {
+            // 开始拖拽
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', e.target.dataset.taskId);
+                e.target.classList.add('dragging');
+            });
+            
+            // 拖拽结束
+            item.addEventListener('dragend', (e) => {
+                e.target.classList.remove('dragging');
+            });
+        });
+    },
+
+    // 创建任务
+    async createTask() {
+        const input = document.getElementById('add-task-input');
+        const title = input.value.trim();
+
+        if (!title) {
+            this.showToast('请输入任务标题');
+            return;
+        }
+
+        try {
+            let listId = 1; // 默认列表ID
+            
+            if (this.state.currentView === 'list') {
+                listId = this.state.currentListId;
+            }
+
+            const data = {
+                list_id: listId,
+                title: title,
+                is_my_day: this.state.currentView === 'my-day' ? 1 : 0
+            };
+
+            await API.createTask(data);
+            
+            input.value = '';
+            document.getElementById('add-task-input-wrapper').style.display = 'none';
+            document.getElementById('btn-add-task').style.display = 'flex';
+            
+            await this.loadTasks();
+            // 创建任务后重新加载列表以更新计数
+            await this.loadLists();
+            this.scheduleCountUpdate();
+            this.showToast('任务创建成功');
+        } catch (error) {
+            this.showToast('任务创建失败');
+        }
+    },
+
+    // 切换任务完成状态
+    async toggleTaskComplete(taskId, isCompleted) {
+        try {
+            await API.toggleTaskComplete(taskId, isCompleted);
+            // 只重新加载当前视图的任务
+            await this.loadTasks();
+            // 延迟更新计数，避免同时发起太多请求
+            this.scheduleCountUpdate();
+        } catch (error) {
+            this.showToast('操作失败');
+        }
+    },
+
+    // 切换任务重要状态
+    async toggleTaskImportant(taskId, isImportant) {
+        try {
+            await API.toggleTaskImportant(taskId, isImportant);
+            // 只重新加载当前视图的任务
+            await this.loadTasks();
+            // 延迟更新计数，避免同时发起太多请求
+            this.scheduleCountUpdate();
+        } catch (error) {
+            this.showToast('操作失败');
+        }
+    },
+    
+    // 延迟更新计数（防抖）
+    scheduleCountUpdate() {
+        if (this._countUpdateTimer) {
+            clearTimeout(this._countUpdateTimer);
+        }
+        this._countUpdateTimer = setTimeout(() => {
+            this.updateTaskCounts();
+        }, 500); // 500ms后更新，避免频繁请求
+    },
+
+    // 显示任务详情
+    async showTaskDetail(taskId) {
+        try {
+            const result = await API.getTask(taskId);
+            const task = result.data;
+            this.state.selectedTask = task;
+
+            const content = document.getElementById('task-detail-content');
+            content.innerHTML = `
+                <div class="detail-section">
+                    <div class="task-checkbox ${task.is_completed ? 'checked' : ''}" 
+                         data-task-id="${task.id}" 
+                         style="width: 24px; height: 24px; margin-bottom: 16px;"></div>
+                    <input type="text" class="detail-title" id="detail-title" value="${this.escapeHtml(task.title)}">
+                </div>
+
+                <div class="detail-section">
+                    <button class="detail-field" id="btn-add-to-my-day">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M12 6v6l4 2"></path>
+                        </svg>
+                        <span>${task.is_my_day ? '从"我的一天"中移除' : '添加到"我的一天"'}</span>
+                    </button>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-label">截止日期</div>
+                    <input type="date" class="detail-field" id="detail-due-date" 
+                           value="${task.due_date || ''}" 
+                           style="width: 100%; border: 1px solid var(--border-color); border-radius: 4px; padding: 8px;">
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-label">备注</div>
+                    <textarea class="detail-textarea" id="detail-note" placeholder="添加备注">${task.note || ''}</textarea>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-label">步骤</div>
+                    <div class="steps-list" id="steps-list">
+                        ${task.steps.map(step => `
+                            <div class="step-item ${step.is_completed ? 'completed' : ''}">
+                                <div class="step-checkbox ${step.is_completed ? 'checked' : ''}" 
+                                     data-step-id="${step.id}"></div>
+                                <span class="step-title">${this.escapeHtml(step.title)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <input type="text" class="add-step-input" id="add-step-input" placeholder="添加步骤">
+                </div>
+
+                <div class="detail-section">
+                    <button class="btn" id="btn-delete-task" style="width: 100%; color: var(--danger-color);">删除任务</button>
+                </div>
+            `;
+
+            document.getElementById('task-detail-panel').style.display = 'block';
+
+            // 绑定详情面板事件
+            this.bindDetailEvents(task);
+        } catch (error) {
+            this.showToast('加载任务详情失败');
+        }
+    },
+
+    // 绑定详情面板事件
+    bindDetailEvents(task) {
+        // 标题更新
+        const titleInput = document.getElementById('detail-title');
+        titleInput.addEventListener('blur', async () => {
+            const newTitle = titleInput.value.trim();
+            if (newTitle && newTitle !== task.title) {
+                await API.updateTask(task.id, { title: newTitle });
+                await this.loadTasks();
+            }
+        });
+
+        // 完成状态
+        document.querySelector('#task-detail-content .task-checkbox').addEventListener('click', async (e) => {
+            const isCompleted = e.target.classList.contains('checked');
+            await this.toggleTaskComplete(task.id, !isCompleted);
+            this.closeTaskDetail();
+        });
+
+        // 添加到我的一天
+        document.getElementById('btn-add-to-my-day').addEventListener('click', async () => {
+            await API.toggleTaskMyDay(task.id, !task.is_my_day);
+            await this.loadTasks();
+            this.scheduleCountUpdate();
+            this.closeTaskDetail();
+        });
+
+        // 截止日期
+        document.getElementById('detail-due-date').addEventListener('change', async (e) => {
+            await API.updateTask(task.id, { due_date: e.target.value || null });
+            await this.loadTasks();
+            this.scheduleCountUpdate();
+        });
+
+        // 备注
+        const noteTextarea = document.getElementById('detail-note');
+        noteTextarea.addEventListener('blur', async () => {
+            await API.updateTask(task.id, { note: noteTextarea.value.trim() || null });
+        });
+
+        // 步骤复选框
+        document.querySelectorAll('.step-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('click', async (e) => {
+                const stepId = e.target.dataset.stepId;
+                const isCompleted = e.target.classList.contains('checked');
+                await API.toggleStepComplete(stepId, !isCompleted);
+                await this.showTaskDetail(task.id);
+            });
+        });
+
+        // 添加步骤
+        const stepInput = document.getElementById('add-step-input');
+        stepInput.addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                const title = stepInput.value.trim();
+                if (title) {
+                    await API.createStep({ task_id: task.id, title });
+                    stepInput.value = '';
+                    await this.showTaskDetail(task.id);
+                }
+            }
+        });
+
+        // 删除任务
+        document.getElementById('btn-delete-task').addEventListener('click', async () => {
+            if (confirm('确定要删除这个任务吗？')) {
+                await API.deleteTask(task.id);
+                await this.loadTasks();
+                this.scheduleCountUpdate();
+                this.closeTaskDetail();
+                this.showToast('任务已删除');
+            }
+        });
+    },
+
+    // 关闭任务详情
+    closeTaskDetail() {
+        document.getElementById('task-detail-panel').style.display = 'none';
+        this.state.selectedTask = null;
+    },
+    
+    // 显示列表详情
+    showListDetail(listId) {
+        const list = this.state.lists.find(l => l.id == listId);
+        if (!list) return;
+        
+        const content = document.getElementById('list-detail-content');
+        content.innerHTML = `
+            <div class="detail-section">
+                <input type="text" class="list-name-input" id="list-name-input" value="${this.escapeHtml(list.name)}" placeholder="列表名称">
+            </div>
+            
+            <div class="list-info-section">
+                <div class="list-info-item">
+                    <span class="list-info-label">任务数量</span>
+                    <span class="list-info-value">${list.task_count || 0}</span>
+                </div>
+                <div class="list-info-item">
+                    <span class="list-info-label">创建时间</span>
+                    <span class="list-info-value">${new Date(list.created_at).toLocaleDateString('zh-CN')}</span>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('list-detail-panel').style.display = 'block';
+        
+        // 绑定列表名称输入事件
+        const nameInput = document.getElementById('list-name-input');
+        nameInput.addEventListener('blur', async () => {
+            const newName = nameInput.value.trim();
+            if (newName && newName !== list.name) {
+                await this.updateListName(listId, newName);
+            } else if (!newName) {
+                nameInput.value = list.name; // 恢复原名称
+            }
+        });
+        
+        nameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                nameInput.blur();
+            }
+        });
+    },
+    
+    // 更新列表名称
+    async updateListName(listId, newName) {
+        try {
+            await API.updateList(listId, { name: newName });
+            await this.loadLists();
+            this.showToast('列表名称已更新');
+            // 重新显示列表详情以更新信息
+            this.showListDetail(listId);
+        } catch (error) {
+            console.error('更新列表名称失败:', error);
+            this.showToast('更新失败');
+        }
+    },
+    
+    // 关闭列表详情
+    closeListDetail() {
+        document.getElementById('list-detail-panel').style.display = 'none';
+    },
+
+    // 显示添加列表对话框
+    showAddListDialog() {
+        const name = prompt('请输入列表名称：');
+        if (name && name.trim()) {
+            this.createList(name.trim());
+        }
+    },
+
+    // 创建列表
+    async createList(name) {
+        try {
+            await API.createList({ name });
+            await this.loadLists();
+            this.showToast('列表创建成功');
+        } catch (error) {
+            this.showToast('列表创建失败');
+        }
+    },
+    
+    // 删除列表
+    async deleteList(listId) {
+        try {
+            // 获取列表信息
+            const list = this.state.lists.find(l => l.id == listId);
+            if (!list) {
+                this.showToast('列表不存在');
+                return;
+            }
+            
+            // 确认删除
+            const taskCountText = list.task_count > 0 ? `（包含 ${list.task_count} 个任务）` : '';
+            if (!confirm(`确定要删除列表「${list.name}」${taskCountText}吗？\n\n删除后无法恢复！`)) {
+                return;
+            }
+            
+            await API.deleteList(listId);
+            
+            // 如果当前正在查看该列表，切换到默认视图
+            if (this.state.currentView === 'list' && this.state.currentListId == listId) {
+                await this.switchView('my-day');
+            }
+            
+            await this.loadLists();
+            this.showToast('列表已删除');
+        } catch (error) {
+            console.error('删除列表失败:', error);
+            this.showToast('删除列表失败');
+        }
+    },
+    
+    // 将任务移动到其他列表
+    async moveTaskToList(taskId, targetListId) {
+        try {
+            // 获取任务信息
+            const task = this.state.tasks.find(t => t.id == taskId);
+            if (!task) {
+                this.showToast('任务不存在');
+                return;
+            }
+            
+            // 如果是同一个列表，不需要移动
+            if (task.list_id == targetListId) {
+                return;
+            }
+            
+            // 获取目标列表名称
+            const targetList = this.state.lists.find(l => l.id == targetListId);
+            if (!targetList) {
+                this.showToast('目标列表不存在');
+                return;
+            }
+            
+            // 更新任务的列表ID
+            await API.updateTask(taskId, { list_id: targetListId });
+            
+            // 重新加载任务和列表
+            await this.loadTasks();
+            await this.loadLists();
+            
+            this.showToast(`已移动到「${targetList.name}」`);
+        } catch (error) {
+            console.error('移动任务失败:', error);
+            this.showToast('移动失败');
+        }
+    },
+
+    // 更新任务计数
+    async updateTaskCounts() {
+        try {
+            // 更新我的一天
+            const myDayResult = await API.getTasks({ view: 'my-day' });
+            document.getElementById('my-day-count').textContent = 
+                myDayResult.data.filter(t => !t.is_completed).length;
+
+            // 更新重要
+            const importantResult = await API.getTasks({ view: 'important' });
+            document.getElementById('important-count').textContent = importantResult.data.length;
+
+            // 更新计划内
+            const plannedResult = await API.getTasks({ view: 'planned' });
+            let plannedCount = 0;
+            if (typeof plannedResult.data === 'object' && !Array.isArray(plannedResult.data)) {
+                Object.values(plannedResult.data).forEach(tasks => {
+                    plannedCount += tasks.filter(t => !t.is_completed).length;
+                });
+            }
+            document.getElementById('planned-count').textContent = plannedCount;
+
+            // 更新任务列表
+            const tasksResult = await API.getTasks({ list_id: 1 });
+            document.getElementById('tasks-count').textContent = 
+                tasksResult.data.filter(t => !t.is_completed).length;
+            
+            // 更新已完成
+            const completedResult = await API.getTasks({ view: 'completed' });
+            document.getElementById('completed-count').textContent = completedResult.data.length;
+
+            // 更新自定义列表计数（直接获取列表数据，不再调用loadLists）
+            const listsResult = await API.getLists();
+            listsResult.data.forEach(list => {
+                const countElement = document.getElementById(`list-${list.id}-count`);
+                if (countElement) {
+                    countElement.textContent = list.task_count || 0;
+                }
+            });
+        } catch (error) {
+            console.error('更新计数失败:', error);
+        }
+    },
+
+    // 更新视图标题
+    updateViewTitle() {
+        const titles = {
+            'my-day': '我的一天',
+            'important': '重要',
+            'planned': '计划内',
+            'tasks': '任务',
+            'completed': '已完成'
+        };
+
+        let title = titles[this.state.currentView];
+        
+        if (this.state.currentView === 'list') {
+            const list = this.state.lists.find(l => l.id == this.state.currentListId);
+            title = list ? list.name : '列表';
+        }
+
+        document.getElementById('view-title').textContent = title;
+    },
+
+    // 更新当前日期显示
+    updateCurrentDate() {
+        const date = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-date').textContent = 
+            date.toLocaleDateString('zh-CN', options);
+    },
+
+    // 格式化日期
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const taskDate = new Date(date);
+        taskDate.setHours(0, 0, 0, 0);
+
+        const diffDays = Math.floor((taskDate - today) / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) return '今天';
+        if (diffDays === 1) return '明天';
+        if (diffDays === -1) return '昨天';
+        if (diffDays < 0) return '已过期';
+
+        return `${date.getMonth() + 1}月${date.getDate()}日`;
+    },
+
+    // HTML 转义
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    },
+
+    // 显示加载状态
+    showLoading() {
+        document.getElementById('loading').style.display = 'flex';
+    },
+
+    // 隐藏加载状态
+    hideLoading() {
+        document.getElementById('loading').style.display = 'none';
+    },
+
+    // 显示 Toast 提示
+    showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    },
+
+    // 显示错误对话框
+    showError(title, message) {
+        // 如果是 SQLite3 未启用错误，显示更详细的信息
+        if (message.includes('SQLite3')) {
+            alert(`❗ ${title}
+
+${message}
+
+请按照以上步骤启用 SQLite3 扩展后重启 PHP 服务器。`);
+        } else {
+            alert(`❗ ${title}\n\n${message}`);
+        }
+    }
+};
+
+// 页面加载完成后初始化应用
+document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+});

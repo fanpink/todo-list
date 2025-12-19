@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List - 我的待办事项</title>
+    <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="app-title">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M9 11l3 3L22 4"></path>
+                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                    </svg>
+                    待办事项
+                </h1>
+            </div>
+
+            <!-- 系统视图 -->
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <button class="nav-item active" data-view="my-day" data-system="true">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M12 6v6l4 2"></path>
+                        </svg>
+                        <span>我的一天</span>
+                        <span class="task-count" id="my-day-count">0</span>
+                    </button>
+                    <button class="nav-item" data-view="important" data-system="true">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                        </svg>
+                        <span>重要</span>
+                        <span class="task-count" id="important-count">0</span>
+                    </button>
+                    <button class="nav-item" data-view="planned" data-system="true">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <span>计划内</span>
+                        <span class="task-count" id="planned-count">0</span>
+                    </button>
+                    <button class="nav-item" data-view="tasks" data-list-id="1" data-system="true">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M3 3h18v18H3z"></path>
+                        </svg>
+                        <span>任务</span>
+                        <span class="task-count" id="tasks-count">0</span>
+                    </button>
+                    <button class="nav-item" data-view="completed" data-system="true">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>已完成</span>
+                        <span class="task-count" id="completed-count">0</span>
+                    </button>
+                </div>
+
+                <!-- 自定义列表 -->
+                <div class="nav-section">
+                    <div class="nav-section-header">
+                        <span>我的列表</span>
+                        <button class="btn-icon" id="btn-add-list" title="新建列表">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="custom-lists">
+                        <!-- 自定义列表将在这里动态生成 -->
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 任务列表区域 -->
+            <div class="task-list-container">
+                <div class="task-list-header">
+                    <h2 class="view-title" id="view-title">我的一天</h2>
+                    <div class="view-info" id="view-info">
+                        <span id="current-date"></span>
+                    </div>
+                </div>
+
+                <div class="task-list" id="task-list">
+                    <!-- 任务将在这里动态生成 -->
+                </div>
+
+                <!-- 添加任务输入框 -->
+                <div class="add-task-form">
+                    <button class="add-task-btn" id="btn-add-task">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        <span>添加任务</span>
+                    </button>
+                    <div class="add-task-input-wrapper" id="add-task-input-wrapper" style="display: none;">
+                        <input type="text" class="add-task-input" id="add-task-input" placeholder="添加任务">
+                        <div class="add-task-actions">
+                            <button class="btn btn-primary" id="btn-save-task">添加</button>
+                            <button class="btn" id="btn-cancel-task">取消</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 任务详情面板 -->
+            <div class="task-detail-panel" id="task-detail-panel" style="display: none;">
+                <div class="task-detail-header">
+                    <button class="btn-icon" id="btn-close-detail">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="task-detail-content" id="task-detail-content">
+                    <!-- 任务详情内容将在这里动态生成 -->
+                </div>
+            </div>
+            
+            <!-- 列表详情面板 -->
+            <div class="list-detail-panel" id="list-detail-panel" style="display: none;">
+                <div class="list-detail-header">
+                    <button class="btn-icon" id="btn-close-list-detail">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="list-detail-content" id="list-detail-content">
+                    <!-- 列表详情内容将在这里动态生成 -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 加载提示 -->
+    <div class="loading" id="loading" style="display: none;">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div class="toast" id="toast"></div>
+
+    <!-- 使用相对路径引入 JS -->
+    <script src="./js/api.js"></script>
+    <script src="./js/app.js"></script>
+</body>
+</html>
