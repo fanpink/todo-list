@@ -95,6 +95,36 @@ extension=sqlite3
 extension=curl
 ```
 
+#### 2.5. 配置 cURL CA 证书（重要！）
+
+**即使使用本地 Ollama，也需要配置 CA 证书，否则 PHP cURL 可能无法正常工作。**
+
+1. **下载 CA 证书文件**
+
+   访问 [https://curl.se/ca/cacert.pem](https://curl.se/ca/cacert.pem) 下载 `cacert.pem` 文件
+
+2. **保存到 PHP 目录**
+
+   例如：`D:\php-8.4.16-nts-Win32-vs17-x64\cacert.pem`
+
+3. **编辑 php.ini**
+
+   找到 `curl.cainfo` 配置项（可能被注释），修改为：
+
+   ```ini
+   curl.cainfo = "D:\php-8.4.16-nts-Win32-vs17-x64\cacert.pem"
+   ```
+
+   **注意：** 路径使用双引号包裹，反斜杠 `\` 需要转义或使用正斜杠 `/`
+
+4. **重启 PHP 服务器**
+
+   ```bash
+   # 先停止当前服务器（Ctrl + C）
+   # 然后重新启动
+   php -S localhost:8000
+   ```
+
 #### 3. 初始化数据库
 
 ```bash
@@ -121,6 +151,10 @@ php -S localhost:8000
 
 将项目文件放到网站根目录下，配置虚拟主机指向项目目录。
 
+**在群晖 NAS Web Station 中部署：**
+
+详见下方「[在群晖 NAS 中部署](#-在群晖-nas-中部署)」章节。
+
 #### 5. 访问应用
 
 打开浏览器访问：
@@ -128,6 +162,194 @@ php -S localhost:8000
 ```
 http://localhost:8000
 ```
+
+---
+
+## 🖥️ 在群晖 NAS 中部署
+
+如果你在群晖 NAS 的 Web Station 中部署此项目，需要特别注意以下配置：
+
+### 1. 启用 PHP 扩展
+
+1. **SSH 登录群晖**
+
+   ```bash
+   ssh admin@your-nas-ip
+   sudo -i
+   ```
+
+2. **找到 PHP 配置文件**
+
+   群晖的 PHP 配置文件通常位于：
+   ```bash
+   # PHP 7.4
+   /etc/php74/php.ini
+   
+   # PHP 8.0
+   /etc/php80/php.ini
+   
+   # PHP 8.1
+   /etc/php81/php.ini
+   
+   # PHP 8.2
+   /etc/php82/php.ini
+   
+   # PHP 8.4
+   /etc/php84/php.ini
+   ```
+
+3. **编辑 php.ini**
+
+   ```bash
+   # 使用 vi 或 nano 编辑
+   vi /etc/php82/php.ini
+   ```
+
+   确保以下扩展已启用（去掉前面的 `;`）：
+   ```ini
+   extension=sqlite3
+   extension=pdo_sqlite
+   extension=curl
+   ```
+
+### 2. 配置 cURL CA 证书
+
+> **推荐使用 Web Station 界面配置（方法一）**，更加简单且不需要手动编辑配置文件，适用于 DSM 7.0+ 和 PHP 8.0+ 版本。
+
+#### 方法一：使用 Web Station 界面配置（推荐，适用于 PHP 8.0+）
+
+1. **下载 CA 证书到群晖**
+
+   ```bash
+   # SSH 登录群晖后执行
+   sudo wget -O /volume1/web/cacert.pem https://curl.se/ca/cacert.pem
+   ```
+
+2. **通过 Web Station 界面配置**
+
+   - 打开 **Web Station** → **脚本语言设置**
+   - 找到你使用的 PHP 版本（如 PHP 8.4），点击「编辑」
+   - 切换到「核心」标签页
+   - 找到 `curl.cainfo` 配置项
+   - 填入证书路径：
+     ```
+     /volume1/web/cacert.pem
+     ```
+   - 点击「确定」保存
+   - 重启 Web Station 使配置生效
+
+#### 方法二：手动编辑 php.ini（适用于所有版本）
+
+   ```bash
+   # 使用 vi 或 nano 编辑（以 PHP 8.4 为例）
+   sudo vi /etc/php84/php.ini
+   ```
+
+   添加或修改以下配置：
+   ```ini
+   curl.cainfo = "/volume1/web/cacert.pem"
+   ```
+
+   保存后重启 Web Station。
+
+3. **设置文件权限**
+
+   ```bash
+   sudo chmod 644 /volume1/web/cacert.pem
+   ```
+
+### 3. 配置 Web Station
+
+1. **打开 Web Station**
+   - 控制面板 → Web Station
+
+2. **创建虚拟主机**
+   - 创建 → 基于名称的虚拟主机
+   - 主机名：`todo.your-domain.com`（或使用 IP）
+   - 端口：`80` 或 `443`
+   - 文档根目录：选择项目上传的目录
+   - PHP 版本：选择 8.0+ 或 7.4+
+   - 启用 PHP 缓存：建议勾选
+
+3. **设置目录权限**
+
+   ```bash
+   # 进入项目目录
+   cd /volume1/web/todo-list
+   
+   # 设置权限（让 http 用户可写）
+   chown -R http:http .
+   chmod -R 755 .
+   
+   # 数据库文件需要写权限
+   chmod 666 todo.db
+   ```
+
+### 4. 初始化数据库
+
+```bash
+# SSH 进入项目目录
+cd /volume1/web/todo-list
+
+# 运行初始化脚本
+php82 init_db.php
+```
+
+### 5. 配置 Ollama（可选）
+
+如果要在群晖上运行 Ollama：
+
+1. **使用 Docker 部署 Ollama**
+
+   在群晖 Docker 套件中：
+   - 搜索并下载 `ollama/ollama` 镜像
+   - 创建容器时映射端口：`11434:11434`
+   - 启动容器
+
+2. **下载模型**
+
+   ```bash
+   # 进入容器
+   docker exec -it ollama-container bash
+   
+   # 下载模型
+   ollama pull qwen2.5-coder:latest
+   ```
+
+3. **在应用中配置**
+
+   AI 模型管理中，将 Ollama API 地址设置为：
+   ```
+   http://localhost:11434
+   ```
+   或容器的实际 IP 地址
+
+### 6. 重启 Web Station
+
+配置完成后，在 Web Station 中重启对应的虚拟主机使配置生效。
+
+### 常见问题（群晖）
+
+**问题：数据库文件权限错误**
+```bash
+# 解决方案
+chown http:http todo.db
+chmod 666 todo.db
+```
+
+**问题：PHP 扩展未加载**
+```bash
+# 检查扩展是否启用
+php82 -m | grep -E 'sqlite|curl'
+
+# 重启 Web Station
+synoservice --restart pkgctl-WebStation
+```
+
+**问题：无法访问 Ollama**
+- 检查 Docker 容器是否运行
+- 检查端口映射是否正确
+- 检查群晖防火墙规则
 
 ---
 
@@ -370,13 +592,42 @@ date_default_timezone_set('Asia/Shanghai');
 - 确认 PHP 已启用 curl 扩展
 - 运行 `enable_curl.bat`（Windows）
 - 或手动编辑 `php.ini` 取消 `extension=curl` 的注释
+- **重要：** 必须配置 `curl.cainfo` 指向 CA 证书文件
 
 ### 3. AI 识别报错 "SSL certificate problem"？
 
+**原因：** PHP cURL 缺少 CA 证书配置
+
 **解决：**
+
+**Windows：**
+```ini
+# php.ini 中添加实例
+curl.cainfo = "D:\php-8.4.16-nts-Win32-vs17-x64\cacert.pem"
+```
+
+**群晖 NAS：**
+通过 Web Station 界面配置（PHP 8.4+ 推荐）
+
+
+1. 下载证书：
+  `` 
+  sudo wget -O /volume1/web/cacert.pem https://curl.se/ca/cacert.pem
+  ```
+
+2. Web Station → 脚本语言设置 → 编辑 PHP 8.4
+   - 核心 → curl.cainfo = /volume1/web/cacert.pem
+   
+3. 重启 Web Station
+```
+**Linux/macOS：**
+```ini
+# php.ini 中添加
+curl.cainfo = "/etc/ssl/certs/cacert.pem"
+```
+
 - 下载 CA 证书：https://curl.se/ca/cacert.pem
-- 配置 `php.ini`：`curl.cainfo = "路径/cacert.pem"`
-- 重启 PHP 服务器
+- 重启 PHP 服务器或 Web Station
 
 ### 4. Ollama 连接失败？
 

@@ -600,7 +600,14 @@ function handleAIParseTasks($db, $method) {
     if ($method !== 'POST') error('不支持的请求方法', 405);
     
     $input = getInput();
-    validateRequired($input, ['text']);
+    
+    // 调试日志：记录接收到的数据
+    error_log('AI Parse Tasks - Input: ' . json_encode($input));
+    
+    // 检查 text 字段
+    if (!isset($input['text'])) {
+        error('缺少必填字段: text');
+    }
     
     $text = trim($input['text']);
     if (empty($text)) {
