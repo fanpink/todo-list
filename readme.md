@@ -1,604 +1,438 @@
-# Todo List - 个人待办事项应用
+# 📝 Todo List - 智能待办事项管理系统
 
-> 基于 PHP + SQLite 的轻量级待办事项管理系统，参考 Microsoft To Do 核心功能设计
+> 基于 PHP + SQLite 的轻量级待办事项管理应用，集成 AI 智能识别功能
 
-## 项目概述
+<div align="center">
 
-本项目是一个单用户的 Web 待办事项应用，无需登录认证，专注于任务管理核心功能。
+![PHP Version](https://img.shields.io/badge/PHP-%3E%3D7.4-blue)
+![SQLite](https://img.shields.io/badge/SQLite-3-green)
+![License](https://img.shields.io/badge/License-MIT-yellow)
 
-### 技术栈
-- **后端**: PHP 7.4+
-- **数据库**: SQLite 3
-- **前端**: HTML5 + CSS3 + JavaScript (Vanilla JS)
-- **部署**: 网站根目录下的 `todo-list` 文件夹
-- **路径规则**: 所有文件引用使用相对路径
+</div>
 
 ---
 
-## 一、功能设计
+## ✨ 功能特性
 
-### 1. 核心对象模型
+### 📋 核心功能
+- **多维任务视图**
+  - 🌅 我的一天：聚焦当日待办
+  - ⭐ 重要：高优先级任务
+  - 📅 计划内：按日期分组管理
+  - 📂 自定义列表：灵活分类（工作、生活等）
 
-#### 基础实体
-- **列表（List）**
-  - 自定义清单：工作、生活、阅读等
-  - 系统清单：我的一天、重要、计划内、已分配给你、任务
+- **任务管理**
+  - ✅ 创建、编辑、删除任务
+  - 📆 设置截止日期和提醒
+  - 🔁 重复任务（每天/每周/每月）
+  - 📝 添加子步骤拆解任务
+  - 🔖 任务备注说明
+  - 🎯 重要性标记
 
-- **任务（Task）**
-  - 标题、备注
-  - 截止日期、提醒时间、重复规则
-  - 优先级（重要性标记）
-  - 所属列表
-  - 完成状态/完成时间
+- **列表管理**
+  - 📁 创建自定义列表
+  - ✏️ 重命名/删除列表
+  - 🎨 列表详情自定义
 
-- **步骤（Subtasks/Steps）**
-  - 任务的子步骤，用于拆解任务
+### 🤖 AI 智能功能
 
-- **附件**
-  - 通过 OneDrive/SharePoint 存储
-  - 支持链接关联
+- **智能任务识别**
+  - 从自然语言文本中自动提取任务
+  - 智能识别截止日期（支持"今天"、"明天"等相对时间）
+  - 自动分类到合适的列表
+  - 提取任务步骤
 
+- **AI 模型管理**
+  - 支持本地 Ollama 模型（免费）
+  - 支持 DeepSeek API
+  - 支持 OpenAI 兼容接口
+  - 灵活切换激活模型
 
+### 🎨 用户体验
 
-### 2. 核心功能
-
-#### "我的一天"视图
-- 手动添加任务到"我的一天"
-- 自动显示今天截止的任务
-- 每日自动清空（不删除原任务）
-
-#### 多维任务视图
-- **我的一天**：当日待办任务
-- **重要**：标记为重要的任务
-- **计划内**：按截止日期分组（今天、明天、本周、以后）
-- **任务**：默认任务列表
-- **自定义列表**：用户创建的分类列表
-
-#### 任务管理功能
-- 创建、编辑、删除任务
-- 设置截止日期
-- 标记任务为重要
-- 添加任务到"我的一天"
-- 标记任务完成/未完成
-- 任务排序（拖拽或手动调整）
-
-#### 任务详情
-- 任务标题（必填）
-- 备注说明
-- 截止日期选择
-- 提醒时间设置
-- 重复规则（每天/每周/每月/自定义）
-- 子步骤（Subtasks）管理
-
-#### 列表管理
-- 创建自定义列表
-- 重命名列表
-- 删除列表（系统列表不可删除）
-- 列表排序
+- 🎯 拖拽排序任务
+- 💾 自动保存
+- 📱 响应式设计
+- 🌙 深色模式支持
+- ⚡ 无需登录，开箱即用
 
 ---
 
-## 二、技术架构
+## 🚀 快速开始
 
-### 1. 整体架构设计
+### 环境要求
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   前端层 (Frontend)                       │
-│  - index.html (主页面)                                   │
-│  - css/style.css (样式)                                  │
-│  - js/app.js (业务逻辑)                                  │
-│  - js/api.js (API 封装)                                  │
-└─────────────────────────────────────────────────────────┘
-                          ↓↑ AJAX (Fetch API)
-┌─────────────────────────────────────────────────────────┐
-│                   后端层 (Backend)                        │
-│  - api.php (RESTful API 接口)                           │
-│  - init_db.php (数据库初始化)                            │
-│  - config.php (配置文件)                                 │
-└─────────────────────────────────────────────────────────┘
-                          ↓↑ SQLite3
-┌─────────────────────────────────────────────────────────┐
-│                  数据层 (Database)                        │
-│  - todo.db (SQLite 数据库文件)                           │
-│    * lists (列表表)                                      │
-│    * tasks (任务表)                                      │
-│    * steps (步骤表)                                      │
-└─────────────────────────────────────────────────────────┘
+- PHP 7.4+ （推荐 PHP 8.x）
+- SQLite 3 扩展
+- cURL 扩展（用于 AI 功能）
+- Web 服务器（Apache/Nginx/内置服务器）
+
+### 安装步骤
+
+#### 1. 克隆项目
+
+```bash
+git clone https://github.com/your-username/todo-list.git
+cd todo-list
 ```
 
-### 2. 目录结构
+#### 2. 启用 PHP 扩展（Windows）
+
+如果你使用 Windows，可以运行提供的批处理脚本：
+
+```bash
+# 启用 SQLite 扩展
+enable_sqlite.bat
+
+# 启用 cURL 扩展（AI 功能需要）
+enable_curl.bat
+```
+
+或手动编辑 `php.ini`，取消以下行的注释：
+
+```ini
+extension=sqlite3
+extension=curl
+```
+
+#### 3. 初始化数据库
+
+```bash
+php init_db.php
+```
+
+成功后会显示：
+
+```
+✓ 数据库初始化成功！
+✓ 创建了 6 个默认列表
+✓ 默认 AI 模型配置已添加
+```
+
+#### 4. 启动服务器
+
+**使用 PHP 内置服务器：**
+
+```bash
+php -S localhost:8000
+```
+
+**使用其他 Web 服务器：**
+
+将项目文件放到网站根目录下，配置虚拟主机指向项目目录。
+
+#### 5. 访问应用
+
+打开浏览器访问：
+
+```
+http://localhost:8000
+```
+
+---
+
+## 🤖 配置 AI 功能
+
+### 方案一：使用本地 Ollama（推荐）
+
+**优势：** 完全免费，数据本地化，无需 API Key
+
+1. **安装 Ollama**
+
+   访问 [https://ollama.com/download](https://ollama.com/download) 下载安装
+
+2. **下载模型**
+
+   ```bash
+   # 推荐模型
+   ollama pull qwen2.5-coder:latest
+   
+   # 或其他模型
+   ollama pull llama3.2
+   ollama pull gemma2
+   ```
+
+3. **启动 Ollama 服务**
+
+   ```bash
+   ollama serve
+   ```
+
+4. **在应用中配置**
+
+   - 点击左侧栏「AI 模型管理」
+   - 默认已配置 Ollama 本地模型
+   - 点击「激活」按钮启用
+
+### 方案二：使用 DeepSeek API
+
+**优势：** 云端服务，无需本地部署
+
+1. **获取 API Key**
+
+   访问 [https://platform.deepseek.com](https://platform.deepseek.com) 注册并获取 API Key
+
+2. **配置 SSL 证书（Windows 用户）**
+
+   下载 CA 证书：
+   ```bash
+   # 访问以下链接下载 cacert.pem
+   https://curl.se/ca/cacert.pem
+   ```
+
+   将文件保存到 PHP 目录，例如：
+   ```
+   D:\php-8.4.16-nts-Win32-vs17-x64\cacert.pem
+   ```
+
+   编辑 `php.ini`：
+   ```ini
+   curl.cainfo = "D:\php-8.4.16-nts-Win32-vs17-x64\cacert.pem"
+   ```
+
+3. **在应用中配置**
+
+   - 点击左侧栏「AI 模型管理」
+   - 编辑 DeepSeek 模型
+   - 填入你的 API Key
+   - 点击「激活」按钮启用
+
+---
+
+## 📖 使用指南
+
+### 基础操作
+
+**创建任务**
+1. 在顶部输入框输入任务标题
+2. 按 Enter 键创建
+
+**管理任务**
+- ✅ 点击圆圈标记完成
+- ⭐ 点击星标标记重要
+- 🌅 右键菜单添加到"我的一天"
+- 📝 点击任务展开详情编辑
+
+**创建列表**
+1. 点击左侧栏底部「+ 新建列表」
+2. 输入列表名称
+3. 自定义图标和颜色（可选）
+
+### AI 智能导入
+
+1. 点击左侧栏「智能导入」
+2. 粘贴或输入任务描述文本，例如：
+
+   ```
+   明天下午3点开会
+   周五提交报告
+   买一些水果和蔬菜
+   下周一联系客户确认需求
+   ```
+
+3. 点击「🤖 识别任务」
+4. 预览识别结果，可编辑调整
+5. 点击「✓ 确认导入」
+
+**AI 支持的时间表达：**
+- 今天、明天、后天
+- 本周X、下周X
+- X月X日
+- YYYY-MM-DD 格式
+
+---
+
+## 🛠️ 项目结构
 
 ```
 todo-list/
 ├── index.html              # 主页面
-├── init_db.php            # 数据库初始化脚本
-├── api.php                # API 接口
-├── config.php             # 配置文件
-├── todo.db                # SQLite 数据库（自动生成）
+├── api.php                 # RESTful API 接口
+├── init_db.php             # 数据库初始化脚本
+├── config.php              # 配置文件
+├── todo.db                 # SQLite 数据库（运行后生成）
 ├── css/
 │   └── style.css          # 样式文件
 ├── js/
-│   ├── app.js             # 主应用逻辑
-│   └── api.js             # API 调用封装
-└── readme.md              # 项目文档
+│   ├── app.js             # 业务逻辑
+│   └── api.js             # API 封装
+├── enable_sqlite.bat       # SQLite 扩展启用脚本
+├── enable_curl.bat         # cURL 扩展启用脚本
+├── update_ai_model.php     # AI 模型更新工具
+├── test_ollama.php         # Ollama 测试工具
+└── README.md              # 项目说明
 ```
-
-### 3. 数据库设计
-
-#### 列表表 (lists)
-```sql
-CREATE TABLE lists (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,                  -- 列表名称
-    icon TEXT DEFAULT 'list',            -- 图标标识
-    is_system INTEGER DEFAULT 0,         -- 是否系统列表 (0:否, 1:是)
-    sort_order INTEGER DEFAULT 0,        -- 排序顺序
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-#### 任务表 (tasks)
-```sql
-CREATE TABLE tasks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    list_id INTEGER NOT NULL,            -- 所属列表ID
-    title TEXT NOT NULL,                 -- 任务标题
-    note TEXT,                           -- 备注
-    is_completed INTEGER DEFAULT 0,      -- 是否完成
-    is_important INTEGER DEFAULT 0,      -- 是否重要
-    is_my_day INTEGER DEFAULT 0,         -- 是否在"我的一天"
-    due_date DATE,                       -- 截止日期
-    reminder_time DATETIME,              -- 提醒时间
-    repeat_rule TEXT,                    -- 重复规则 (JSON格式)
-    completed_at DATETIME,               -- 完成时间
-    sort_order INTEGER DEFAULT 0,        -- 排序顺序
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
-);
-```
-
-#### 步骤表 (steps)
-```sql
-CREATE TABLE steps (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_id INTEGER NOT NULL,            -- 所属任务ID
-    title TEXT NOT NULL,                 -- 步骤标题
-    is_completed INTEGER DEFAULT 0,      -- 是否完成
-    sort_order INTEGER DEFAULT 0,        -- 排序顺序
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
-);
-```
-
-### 4. API 接口设计
-
-#### 列表相关
-```
-GET    ./api.php?action=lists                # 获取所有列表
-POST   ./api.php?action=lists                # 创建列表
-PUT    ./api.php?action=lists&id={id}        # 更新列表
-DELETE ./api.php?action=lists&id={id}        # 删除列表
-```
-
-#### 任务相关
-```
-GET    ./api.php?action=tasks&list_id={id}   # 获取指定列表的任务
-GET    ./api.php?action=tasks&view=my-day     # 获取"我的一天"任务
-GET    ./api.php?action=tasks&view=important  # 获取重要任务
-GET    ./api.php?action=tasks&view=planned    # 获取计划内任务
-POST   ./api.php?action=tasks                 # 创建任务
-PUT    ./api.php?action=tasks&id={id}         # 更新任务
-DELETE ./api.php?action=tasks&id={id}         # 删除任务
-```
-
-#### 步骤相关
-```
-GET    ./api.php?action=steps&task_id={id}   # 获取任务的步骤
-POST   ./api.php?action=steps                 # 创建步骤
-PUT    ./api.php?action=steps&id={id}         # 更新步骤
-DELETE ./api.php?action=steps&id={id}         # 删除步骤
-```
-
-### 5. 前端技术栈
-
-- **HTML5**: 语义化标签，支持现代浏览器
-- **CSS3**: Flexbox/Grid 布局，CSS Variables，动画效果
-- **JavaScript (ES6+)**: 
-  - Fetch API 进行 AJAX 请求
-  - LocalStorage 存储用户偏好
-  - Event Delegation 事件处理
-  - 模板字面量构建 DOM
-
-### 6. 核心功能实现
-
-#### "我的一天"逻辑
-- `is_my_day` 字段标记任务是否在"我的一天"
-- 每日自动清空：前端检测日期变化，调用 API 批量更新
-- 自动添加今日截止任务到"我的一天"
-
-#### 计划内视图
-- 根据 `due_date` 字段分组：
-  - 今天：`due_date = CURRENT_DATE`
-  - 明天：`due_date = CURRENT_DATE + 1`
-  - 本周：`due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 7`
-  - 以后：`due_date > CURRENT_DATE + 7`
-  - 过期：`due_date < CURRENT_DATE AND is_completed = 0`
-
-#### 重要任务视图
-- 筛选 `is_important = 1` 且 `is_completed = 0` 的任务
-
-#### 任务完成
-- 更新 `is_completed = 1`
-- 设置 `completed_at = CURRENT_TIMESTAMP`
-- 前端添加完成动画效果
 
 ---
 
-## 三、开发规范
+## 🗄️ 数据库设计
 
-### 1. 路径规则
+### 核心表结构
 
-**所有文件引用必须使用相对路径**，因为应用部署在 `todo-list` 子目录下：
+**lists** - 任务列表
+```sql
+- id: 列表ID
+- name: 列表名称
+- icon: 图标
+- color: 颜色
+- is_system: 是否系统列表
+- list_order: 排序序号
+```
+
+**tasks** - 任务
+```sql
+- id: 任务ID
+- list_id: 所属列表
+- title: 任务标题
+- notes: 备注
+- due_date: 截止日期
+- is_important: 是否重要
+- is_completed: 是否完成
+- task_order: 排序序号
+```
+
+**steps** - 任务步骤
+```sql
+- id: 步骤ID
+- task_id: 所属任务
+- title: 步骤标题
+- is_completed: 是否完成
+```
+
+**ai_models** - AI 模型配置
+```sql
+- id: 模型ID
+- name: 模型名称
+- type: 模型类型（ollama/deepseek/openai）
+- api_url: API 地址
+- model_name: 模型名称
+- api_key: API 密钥
+- is_active: 是否激活
+```
+
+---
+
+## 🔧 开发指南
+
+### API 接口
+
+所有 API 请求统一通过 `api.php?action=xxx` 访问
+
+**任务相关：**
+- `GET /api.php?action=tasks&list_id=1` - 获取任务列表
+- `POST /api.php?action=tasks` - 创建任务
+- `PUT /api.php?action=tasks&id=1` - 更新任务
+- `DELETE /api.php?action=tasks&id=1` - 删除任务
+
+**列表相关：**
+- `GET /api.php?action=lists` - 获取所有列表
+- `POST /api.php?action=lists` - 创建列表
+- `PUT /api.php?action=lists&id=1` - 更新列表
+- `DELETE /api.php?action=lists&id=1` - 删除列表
+
+**AI 相关：**
+- `GET /api.php?action=ai_models` - 获取 AI 模型列表
+- `POST /api.php?action=ai_parse_tasks` - AI 识别任务
+- `POST /api.php?action=set_active_ai_model` - 设置激活模型
+
+### 自定义配置
+
+编辑 `config.php` 自定义配置：
 
 ```php
-// ✅ 正确 - 使用相对路径
-require_once './config.php';
-$db = new SQLite3('./todo.db');
-```
+<?php
+// 数据库配置
+define('DB_PATH', './todo.db');
 
-```html
-<!-- ✅ 正确 - 使用相对路径 -->
-<link rel="stylesheet" href="./css/style.css">
-<script src="./js/app.js"></script>
-```
+// 时区设置
+date_default_timezone_set('Asia/Shanghai');
 
-```javascript
-// ✅ 正确 - API 调用使用相对路径
-fetch('./api.php?action=tasks')
-```
-
-```php
-// ❌ 错误 - 不要使用绝对路径
-require_once '/config.php';
-$db = new SQLite3('/todo.db');
-```
-
-### 2. PHP 编码规范
-
-- 使用 UTF-8 编码
-- 错误处理：使用 try-catch 捕获异常
-- API 返回：统一 JSON 格式 `{"success": true/false, "data": {}, "message": ""}`
-- 数据验证：对所有用户输入进行验证和过滤
-- SQL 注入防护：使用预处理语句（Prepared Statements）
-
-### 3. 前端编码规范
-
-- 使用语义化 HTML 标签
-- CSS 采用 BEM 命名规范
-- JavaScript 使用 ES6+ 语法
-- 避免全局变量污染，使用模块化设计
-- 异步操作使用 async/await
-
-### 4. 数据安全
-
-- SQLite 数据库文件权限控制（建议 600）
-- XSS 防护：输出时转义 HTML 特殊字符
-- CSRF 防护：验证请求来源（可选）
-- 输入验证：前后端双重验证
-
----
-
-## 四、快速开始
-
-### 1. 环境要求
-
-- PHP 7.4 或更高版本
-- SQLite 3 支持（PHP 默认包含）
-- 现代浏览器（Chrome, Firefox, Safari, Edge）
-
-### 2. 安装步骤
-
-#### ⚠️ 重要：首先检查 SQLite3 扩展
-
-在开始之前，请先访问检查页面确认 SQLite3 扩展是否已启用：
-
-```bash
-# 启动服务器后，在浏览器中访问：
-http://localhost:8000/check_sqlite.php
-```
-
-这个页面会告诉你：
-- ✅ SQLite3 是否已启用
-- 📝 如何启用 SQLite3（如果未启用）
-- 🔍 当前 PHP 版本和已加载的扩展
-
-#### Step 1: 克隆或下载项目
-```bash
-# 将项目放置在 Web 服务器的 todo-list 目录下
-# 例如：/var/www/html/todo-list/ 或 C:/xampp/htdocs/todo-list/
-```
-
-#### Step 2: 检查并启用 SQLite3 扩展
-
-**方法一：使用检查页面（推荐）**
-```bash
-# 先启动服务器
-php -S localhost:8000
-
-# 然后在浏览器访问：
-http://localhost:8000/check_sqlite.php
-```
-
-**方法二：命令行检查**
-```bash
-php -m | grep -i sqlite
-# Windows 上使用：
-php -m | findstr sqlite
-```
-
-如果没有输出，说明需要启用 SQLite3：
-
-1. 找到 php.ini 文件：
-   ```bash
-   php --ini
-   ```
-
-2. 编辑 php.ini，取消以下行的注释（删除前面的分号）：
-   ```ini
-   extension=sqlite3
-   extension=pdo_sqlite
-   ```
-
-3. 保存并重启 PHP 服务器
-
-#### Step 3: 初始化数据库
-```bash
-# 在项目目录下执行
-php init_db.php
-```
-
-#### Step 4: 启动 PHP 内置服务器（开发环境）
-```bash
-php -S localhost:8000
-```
-
-#### Step 5: 访问应用
-```
-浏览器打开: http://localhost:8000/
-```
-
-### 3. 生产部署
-
-#### Apache 配置
-```apache
-<Directory /var/www/html/todo-list>
-    Options -Indexes +FollowSymLinks
-    AllowOverride All
-    Require all granted
-</Directory>
-```
-
-#### Nginx 配置
-```nginx
-location /todo-list {
-    try_files $uri $uri/ /todo-list/index.html;
-}
-
-location ~ /todo-list/.*\.php$ {
-    fastcgi_pass unix:/var/run/php/php7.4-fpm.sock;
-    fastcgi_index index.php;
-    include fastcgi_params;
-}
-```
-
-#### 文件权限设置
-```bash
-# 设置数据库文件权限
-chmod 600 todo.db
-chown www-data:www-data todo.db
-
-# 设置目录权限
-chmod 755 .
+// 其他配置...
+?>
 ```
 
 ---
 
-## 五、功能清单
+## ❓ 常见问题
 
-### 已实现功能
-- [x] 数据库初始化
-- [x] API 接口开发
-  - [x] 列表 CRUD
-  - [x] 任务 CRUD
-  - [x] 步骤 CRUD
-- [x] 前端界面开发
-  - [x] 主布局（侧边栏 + 主内容区）
-  - [x] 列表管理
-  - [x] 任务列表显示
-  - [x] 任务详情面板
-  - [x] "我的一天"视图
-  - [x] 重要任务视图
-  - [x] 计划内视图
-- [x] 交互功能
-  - [x] 添加/编辑/删除任务
-  - [x] 标记完成/重要
-  - [x] 添加到"我的一天"
-  - [x] 设置截止日期
-  - [x] 添加备注
-  - [x] 管理步骤
-- [ ] 高级功能
-  - [ ] 任务排序（拖拽）
-  - [ ] 搜索任务
-  - [ ] 任务统计
-  - [ ] 主题切换（亮色/暗色）
+### 1. 数据库初始化失败？
 
-### 未来扩展
-- [ ] 提醒通知（浏览器通知 API）
-- [ ] 重复任务自动生成
-- [ ] 数据导出（JSON/CSV）
-- [ ] 数据导入
-- [ ] 任务归档
-- [ ] 标签功能
-- [ ] 全文搜索
-- [ ] 键盘快捷键
+**错误：** `SQLite3::open(): Unable to open database`
 
----
+**解决：**
+- 确认 PHP 已启用 sqlite3 扩展
+- 确认项目目录有写入权限
+- 运行 `enable_sqlite.bat`（Windows）
 
-## 六、调试与测试
+### 2. AI 功能报错 "Call to undefined function curl_init()"？
 
-### 开启开发服务器
-```bash
-php -S localhost:8000
-```
+**解决：**
+- 确认 PHP 已启用 curl 扩展
+- 运行 `enable_curl.bat`（Windows）
+- 或手动编辑 `php.ini` 取消 `extension=curl` 的注释
 
-### 重置数据库
-```bash
-# 删除现有数据库
-rm todo.db
+### 3. AI 识别报错 "SSL certificate problem"？
 
-# 重新初始化
-php init_db.php
-```
+**解决：**
+- 下载 CA 证书：https://curl.se/ca/cacert.pem
+- 配置 `php.ini`：`curl.cainfo = "路径/cacert.pem"`
+- 重启 PHP 服务器
 
-### 查看数据库内容
-```bash
-sqlite3 todo.db
+### 4. Ollama 连接失败？
 
-# SQLite 命令
-.tables          # 查看所有表
-.schema tasks    # 查看表结构
-SELECT * FROM tasks;  # 查询数据
-.quit            # 退出
-```
+**解决：**
+- 确认 Ollama 服务已启动：`ollama serve`
+- 确认已下载模型：`ollama list`
+- 检查端口 11434 是否被占用
+- 在 AI 模型管理中更新模型名称
 
-### 常见问题
+### 5. 如何备份数据？
 
-#### 1. 数据库文件无法创建
-- **检查 PHP SQLite3 扩展是否启用**
-  ```bash
-  php -m | grep -i sqlite
-  # 或在 Windows 上：
-  php -m | findstr sqlite
-  ```
-- **启用 SQLite3 扩展**
-  - 找到 php.ini 文件：`php --ini`
-  - 编辑 php.ini，取消以下行的注释（删除前面的分号）：
-    ```ini
-    extension=sqlite3
-    extension=pdo_sqlite
-    ```
-  - 保存并重启 PHP 服务器
-- 检查目录写权限
-
-#### 2. API 返回 404
-- 检查相对路径是否正确
-- 确认 Web 服务器配置
-
-#### 3. 中文乱码
-- 确保所有文件使用 UTF-8 编码
-- 检查数据库连接字符集设置
+**方法：**
+- 直接复制 `todo.db` 文件
+- 或使用 SQLite 导出工具
 
 ---
 
-## 七、参考资源
+## 🤝 贡献指南
 
-### 设计参考
-- [Microsoft To Do 官网](https://todo.microsoft.com/)
-- [Fluent Design System](https://www.microsoft.com/design/fluent/)
+欢迎提交 Issue 和 Pull Request！
 
-### 技术文档
-- [PHP 官方文档](https://www.php.net/manual/zh/)
-- [SQLite 文档](https://www.sqlite.org/docs.html)
-- [MDN Web Docs](https://developer.mozilla.org/zh-CN/)
-
-### 开源项目
-- [Microsoft To Do 官方开源](https://github.com/microsoft/todo)
-- [TodoMVC](https://todomvc.com/)
+1. Fork 本项目
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
 
 ---
 
-## 八、贡献与反馈
+## 📄 开源协议
 
-本项目为个人学习项目，欢迎提出改进建议。
-
----
-
-**项目状态**: ✅ 已完成核心功能  
-**最后更新**: 2025-12-19  
-**版本**: v1.0.0
+本项目采用 [MIT License](LICENSE) 开源协议
 
 ---
 
-## 九、项目文件说明
+## 🙏 致谢
 
-### 后端文件
-- **init_db.php** - 数据库初始化脚本，创建表结构和默认数据
-- **config.php** - 配置文件，包含数据库路径和工具函数
-- **api.php** - RESTful API 接口，处理所有数据操作
-- **todo.db** - SQLite 数据库文件（运行 init_db.php 后自动创建）
-
-### 前端文件
-- **index.html** - 主页面，应用的 HTML 结构
-- **css/style.css** - 样式文件，Microsoft To Do 风格设计
-- **js/api.js** - API 封装，处理与后端的通信
-- **js/app.js** - 应用逻辑，处理所有 UI 交互和业务逻辑
-
-### 文档
-- **readme.md** - 项目文档（本文件）
-- **info.php** - PHP 配置信息查看（可选）
+- 设计灵感来自 Microsoft To Do
+- AI 功能基于 Ollama 和 DeepSeek
+- 感谢所有贡献者
 
 ---
 
-## 十、功能演示
+## 📮 联系方式
 
-### 核心功能
+如有问题或建议，欢迎通过以下方式联系：
 
-1. **我的一天** - 今日待办任务集中展示
-2. **重要任务** - 标记为重要的任务单独展示
-3. **计划内任务** - 按截止日期分组（过期、今天、明天、本周、以后）
-4. **自定义列表** - 创建个人分类列表
-5. **任务详情** - 完整的任务信息管理
-   - 修改标题
-   - 设置截止日期
-   - 添加备注
-   - 管理步骤（子任务）
-   - 标记完成/重要
-   - 添加到"我的一天"
-6. **实时更新** - 所有操作立即反映在界面上
-
-### 使用技巧
-
-- **快速添加任务**：点击"添加任务"按钮或按 Enter 键
-- **查看任务详情**：点击任意任务即可查看详细信息
-- **标记重要**：点击任务右侧的星标图标
-- **完成任务**：点击任务左侧的圆形复选框
-- **创建列表**：点击侧边栏"我的列表"旁的 + 按钮
+- 💬 提交 [Issue](https://github.com/your-username/todo-list/issues)
+- 📧 发送邮件至：your-email@example.com
 
 ---
 
-## 十一、注意事项
+<div align="center">
 
-⚠️ **重要提示**
+**⭐ 如果这个项目对你有帮助，请给个 Star 支持一下！**
 
-1. **首次使用必须先运行数据库初始化**
-   ```bash
-   php init_db.php
-   ```
+Made with ❤️ by [Your Name]
 
-2. **确保 PHP SQLite3 扩展已启用**（见常见问题部分）
-
-3. **数据库文件安全**
-   - todo.db 包含所有数据，请定期备份
-   - 建议设置适当的文件权限（600）
-
-4. **浏览器兼容性**
-   - 推荐使用 Chrome、Firefox、Safari 或 Edge 最新版本
-   - 需要支持 ES6+ 和 Fetch API
-
-5. **相对路径部署**
-   - 本应用设计为部署在 `todo-list` 子目录
-   - 所有文件引用均使用相对路径
-   - 如需部署到其他位置，确保保持相对路径结构
+</div>
