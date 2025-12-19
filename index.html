@@ -79,6 +79,31 @@
                         <!-- 自定义列表将在这里动态生成 -->
                     </div>
                 </div>
+                
+                <!-- AI功能区 -->
+                <div class="nav-section">
+                    <div class="nav-section-header">
+                        <span>AI助手</span>
+                    </div>
+                    <button class="nav-item" id="btn-ai-models">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M12 1v6m0 6v6m5.2-14.2l-4.2 4.2m0 6l4.2 4.2M23 12h-6m-6 0H1m14.2 5.2l-4.2-4.2m0-6l-4.2-4.2"></path>
+                        </svg>
+                        <span>AI模型管理</span>
+                    </button>
+                    <button class="nav-item" id="btn-ai-import">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                            <polyline points="7.5 19.79 7.5 14.6 3 12"></polyline>
+                            <polyline points="21 12 16.5 14.6 16.5 19.79"></polyline>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                        <span>智能导入</span>
+                    </button>
+                </div>
             </nav>
         </aside>
 
@@ -157,6 +182,123 @@
 
     <!-- Toast 提示 -->
     <div class="toast" id="toast"></div>
+    
+    <!-- AI模型管理弹窗 -->
+    <div class="modal" id="ai-models-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>AI模型管理</h2>
+                <button class="btn-close" id="btn-close-models-modal">×</button>
+            </div>
+            <div class="modal-body">
+                <button class="btn btn-primary" id="btn-add-model">+ 添加模型</button>
+                <div class="models-table-container">
+                    <table class="models-table">
+                        <thead>
+                            <tr>
+                                <th>名称</th>
+                                <th>类型</th>
+                                <th>API地址</th>
+                                <th>模型</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="models-list">
+                            <!-- 动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI模型表单弹窗 -->
+    <div class="modal" id="ai-model-form-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="model-form-title">配置AI模型</h2>
+                <button class="btn-close" id="btn-close-model-form">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="ai-model-form">
+                    <input type="hidden" id="model-id">
+                    <div class="form-group">
+                        <label>模型名称</label>
+                        <input type="text" id="model-name" required placeholder="例如：Ollama 本地">
+                    </div>
+                    <div class="form-group">
+                        <label>模型类型</label>
+                        <select id="model-type" required>
+                            <option value="ollama">Ollama (本地)</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="custom">自定义</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>API地址</label>
+                        <input type="url" id="model-api-url" required placeholder="http://localhost:11434">
+                        <small>例如：http://localhost:11434 或 https://api.deepseek.com</small>
+                    </div>
+                    <div class="form-group">
+                        <label>模型名称</label>
+                        <input type="text" id="model-model-name" required placeholder="qwen2.5">
+                        <small>例如：qwen2.5, deepseek-chat, gpt-4</small>
+                    </div>
+                    <div class="form-group">
+                        <label>API密钥 (可选)</label>
+                        <input type="password" id="model-api-key" placeholder="sk-xxx">
+                        <small>Ollama本地模型无需填写</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">保存</button>
+                        <button type="button" class="btn" id="btn-cancel-model">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI智能导入弹窗 -->
+    <div class="modal" id="ai-import-modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>智能导入任务</h2>
+                <button class="btn-close" id="btn-close-import-modal">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- 步骤1：输入文本 -->
+                <div class="import-step" id="import-step-1">
+                    <div class="form-group">
+                        <label>选择AI模型</label>
+                        <select id="ai-model-select">
+                            <!-- 动态加载激活的模型 -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>粘贴任务描述文本</label>
+                        <textarea id="ai-input-text" rows="8" placeholder="例如：&#10;明天下午3点前完成项目报告，需要先收集数据、分析结果、撰写文档&#10;周末去超市买圣诞礼物&#10;下周一提交年度总结"></textarea>
+                    </div>
+                    <button class="btn btn-primary" id="btn-ai-parse">🤖 识别任务</button>
+                </div>
+                
+                <!-- 步骤2：确认任务 -->
+                <div class="import-step" id="import-step-2" style="display: none;">
+                    <div class="import-preview">
+                        <h3>识别到以下任务，请确认或修改：</h3>
+                        <div id="ai-tasks-preview">
+                            <!-- 动态生成任务卡片 -->
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" id="btn-confirm-import">✓ 确认导入</button>
+                            <button class="btn" id="btn-back-to-input">← 重新输入</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- 使用相对路径引入 JS -->
     <script src="./js/api.js"></script>

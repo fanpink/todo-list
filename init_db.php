@@ -83,6 +83,29 @@ try {
         FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
     )');
     
+    // 创建AI模型配置表
+    $db->exec('
+    CREATE TABLE IF NOT EXISTS ai_models (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name VARCHAR(100) NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        api_url TEXT NOT NULL,
+        model_name VARCHAR(100) NOT NULL,
+        api_key TEXT,
+        is_active INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )');
+    
+    // 创建AI解析历史表
+    $db->exec('
+    CREATE TABLE IF NOT EXISTS ai_parse_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        input_text TEXT NOT NULL,
+        output_json TEXT NOT NULL,
+        model_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )');
+    
     // 检查是否已经有系统列表
     if ($usePDO) {
         $result = $db->query('SELECT COUNT(*) as count FROM lists WHERE is_system = 1');
@@ -103,6 +126,26 @@ try {
         echo "✓ 已创建默认系统列表\n";
     } else {
         echo "✓ 数据库已存在，表结构验证完成\n";
+    }
+    
+    // 检查是否已有AI模型配置
+    if ($usePDO) {
+        $result = $db->query('SELECT COUNT(*) as count FROM ai_models');
+        $row = $result->fetch(PDO::FETCH_ASSOC);
+    } else {
+        $result = $db->query('SELECT COUNT(*) as count FROM ai_models');
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+    }
+    
+    if ($row['count'] == 0) {
+        // 插入默认AI模型配置
+        $db->exec("
+        INSERT INTO ai_models (name, type, api_url, model_name, api_key, is_active) VALUES 
+            ('Ollama 本地', 'ollama', 'http://localhost:11434', 'qwen2.5', NULL, 1),
+            ('DeepSeek', 'deepseek', 'https://api.deepseek.com', 'deepseek-chat', NULL, 0)
+        ");
+        
+        echo "✓ 已创建默认AI模型配置\n";
     }
     
     if (!$usePDO) {

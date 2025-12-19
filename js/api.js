@@ -193,5 +193,49 @@ const API = {
      */
     async toggleStepComplete(id, isCompleted) {
         return await this.updateStep(id, { is_completed: isCompleted ? 1 : 0 });
+    },
+    
+    // ========== AI相关 ==========
+    
+    /**
+     * 获取AI模型列表
+     */
+    async getAIModels() {
+        return await this.request('ai_models');
+    },
+    
+    /**
+     * 创建AI模型
+     */
+    async createAIModel(data) {
+        return await this.request('ai_models', { method: 'POST', data });
+    },
+    
+    /**
+     * 更新AI模型
+     */
+    async updateAIModel(id, data) {
+        return await this.request('ai_models', { method: 'PUT', params: { id }, data });
+    },
+    
+    /**
+     * 删除AI模型
+     */
+    async deleteAIModel(id) {
+        return await this.request('ai_models', { method: 'DELETE', params: { id } });
+    },
+    
+    /**
+     * 设置激活AI模型
+     */
+    async setActiveAIModel(id) {
+        return await this.request('set_active_ai_model', { method: 'POST', data: { id } });
+    },
+    
+    /**
+     * AI识别任务
+     */
+    async aiParseTasks(data) {
+        return await this.request('ai_parse_tasks', { method: 'POST', data });
     }
 };

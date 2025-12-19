@@ -78,6 +78,61 @@ const App = {
         document.getElementById('btn-close-list-detail').addEventListener('click', () => {
             this.closeListDetail();
         });
+        
+        // AI模型管理按钮
+        document.getElementById('btn-ai-models').addEventListener('click', () => {
+            this.showAIModelsModal();
+        });
+        
+        // AI智能导入按钮
+        document.getElementById('btn-ai-import').addEventListener('click', () => {
+            this.showAIImportModal();
+        });
+        
+        // 关闭AI模型管理弹窗
+        document.getElementById('btn-close-models-modal').addEventListener('click', () => {
+            document.getElementById('ai-models-modal').style.display = 'none';
+        });
+        
+        // 添加模型按钮
+        document.getElementById('btn-add-model').addEventListener('click', () => {
+            this.showAIModelForm();
+        });
+        
+        // 关闭模型表单弹窗
+        document.getElementById('btn-close-model-form').addEventListener('click', () => {
+            document.getElementById('ai-model-form-modal').style.display = 'none';
+        });
+        
+        document.getElementById('btn-cancel-model').addEventListener('click', () => {
+            document.getElementById('ai-model-form-modal').style.display = 'none';
+        });
+        
+        // 模型表单提交
+        document.getElementById('ai-model-form').addEventListener('submit', (e) => {
+            this.saveAIModel(e);
+        });
+        
+        // 关闭AI导入弹窗
+        document.getElementById('btn-close-import-modal').addEventListener('click', () => {
+            document.getElementById('ai-import-modal').style.display = 'none';
+        });
+        
+        // AI识别任务按钮
+        document.getElementById('btn-ai-parse').addEventListener('click', () => {
+            this.aiParseTasks();
+        });
+        
+        // 返回输入步骤
+        document.getElementById('btn-back-to-input').addEventListener('click', () => {
+            document.getElementById('import-step-2').style.display = 'none';
+            document.getElementById('import-step-1').style.display = 'block';
+        });
+        
+        // 确认导入按钮
+        document.getElementById('btn-confirm-import').addEventListener('click', () => {
+            this.confirmAIImport();
+        });
     },
 
     // 加载列表
@@ -915,6 +970,318 @@ ${message}
 请按照以上步骤启用 SQLite3 扩展后重启 PHP 服务器。`);
         } else {
             alert(`❗ ${title}\n\n${message}`);
+        }
+    },
+    
+    // ========== AI功能 ==========
+    
+    // 显示AI模型管理弹窗
+    showAIModelsModal() {
+        document.getElementById('ai-models-modal').style.display = 'flex';
+        this.loadAIModels();
+    },
+    
+    // 加载AI模型列表
+    async loadAIModels() {
+        try {
+            const result = await API.getAIModels();
+            const models = result.data || [];
+            
+            const tbody = document.getElementById('models-list');
+            tbody.innerHTML = models.map(model => `
+                <tr>
+                    <td>${this.escapeHtml(model.name)}</td>
+                    <td>${this.escapeHtml(model.type)}</td>
+                    <td>${this.escapeHtml(model.api_url)}</td>
+                    <td>${this.escapeHtml(model.model_name)}</td>
+                    <td>
+                        <span class="model-status ${model.is_active ? 'active' : 'inactive'}">
+                            ${model.is_active ? '激活' : '未激活'}
+                        </span>
+                    </td>
+                    <td class="model-actions">
+                        ${!model.is_active ? `<button class="btn btn-primary" onclick="App.setActiveModel(${model.id})。激活</button>` : ''}
+                        <button class="btn" onclick="App.editAIModel(${model.id})"。编辑</button>
+                        <button class="btn" onclick="App.deleteAIModel(${model.id})"。删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (error) {
+            console.error('加载AI模型失败:', error);
+            this.showToast('加载AI模型失败');
+        }
+    },
+    
+    // 显示AI模型表单
+    showAIModelForm(modelId = null) {
+        const modal = document.getElementById('ai-model-form-modal');
+        const form = document.getElementById('ai-model-form');
+        
+        if (modelId) {
+            // 编辑模式
+            API.getAIModels().then(result => {
+                const model = result.data.find(m => m.id == modelId);
+                if (model) {
+                    document.getElementById('model-form-title').textContent = '编辑AI模型';
+                    document.getElementById('model-id').value = model.id;
+                    document.getElementById('model-name').value = model.name;
+                    document.getElementById('model-type').value = model.type;
+                    document.getElementById('model-api-url').value = model.api_url;
+                    document.getElementById('model-model-name').value = model.model_name;
+                    document.getElementById('model-api-key').value = model.api_key || '';
+                }
+            });
+        } else {
+            // 新增模式
+            document.getElementById('model-form-title').textContent = '添加AI模型';
+            form.reset();
+            document.getElementById('model-id').value = '';
+        }
+        
+        modal.style.display = 'flex';
+    },
+    
+    // 保存AI模型
+    async saveAIModel(event) {
+        event.preventDefault();
+        
+        const modelId = document.getElementById('model-id').value;
+        const data = {
+            name: document.getElementById('model-name').value,
+            type: document.getElementById('model-type').value,
+            api_url: document.getElementById('model-api-url').value,
+            model_name: document.getElementById('model-model-name').value,
+            api_key: document.getElementById('model-api-key').value || null
+        };
+        
+        try {
+            if (modelId) {
+                await API.updateAIModel(modelId, data);
+                this.showToast('模型更新成功');
+            } else {
+                await API.createAIModel(data);
+                this.showToast('模型添加成功');
+            }
+            
+            document.getElementById('ai-model-form-modal').style.display = 'none';
+            this.loadAIModels();
+        } catch (error) {
+            console.error('保存模型失败:', error);
+            this.showToast('保存失败');
+        }
+    },
+    
+    // 编辑AI模型
+    editAIModel(modelId) {
+        this.showAIModelForm(modelId);
+    },
+    
+    // 删除AI模型
+    async deleteAIModel(modelId) {
+        if (!confirm('确定要删除这个模型吗？')) return;
+        
+        try {
+            await API.deleteAIModel(modelId);
+            this.showToast('模型已删除');
+            this.loadAIModels();
+        } catch (error) {
+            console.error('删除模型失败:', error);
+            this.showToast('删除失败');
+        }
+    },
+    
+    // 设置激活AI模型
+    async setActiveModel(modelId) {
+        try {
+            await API.setActiveAIModel(modelId);
+            this.showToast('激活模型设置成功');
+            this.loadAIModels();
+        } catch (error) {
+            console.error('设置激活模型失败:', error);
+            this.showToast('设置失败');
+        }
+    },
+    
+    // 显示AI导入弹窗
+    async showAIImportModal() {
+        document.getElementById('ai-import-modal').style.display = 'flex';
+        document.getElementById('import-step-1').style.display = 'block';
+        document.getElementById('import-step-2').style.display = 'none';
+        document.getElementById('ai-input-text').value = '';
+        
+        // 加载模型列表
+        try {
+            const result = await API.getAIModels();
+            const models = result.data || [];
+            const select = document.getElementById('ai-model-select');
+            select.innerHTML = models.map(model => 
+                `<option value="${model.id}" ${model.is_active ? 'selected' : ''}>${this.escapeHtml(model.name)}</option>`
+            ).join('');
+        } catch (error) {
+            console.error('加载模型列表失败:', error);
+        }
+    },
+    
+    // AI识别任务
+    async aiParseTasks() {
+        const text = document.getElementById('ai-input-text').value.trim();
+        if (!text) {
+            this.showToast('请输入任务描述文本');
+            return;
+        }
+        
+        const modelId = document.getElementById('ai-model-select').value;
+        
+        try {
+            // 显示加载状态
+            document.getElementById('btn-ai-parse').disabled = true;
+            document.getElementById('btn-ai-parse').textContent = '识别中...';
+            
+            const result = await API.aiParseTasks({ text, model_id: modelId });
+            const tasks = result.data || [];
+            
+            if (tasks.length === 0) {
+                this.showToast('未能识别出任务，请尝试更明确的描述');
+                return;
+            }
+            
+            // 显示任务预览
+            this.renderAITasksPreview(tasks);
+            document.getElementById('import-step-1').style.display = 'none';
+            document.getElementById('import-step-2').style.display = 'block';
+            
+        } catch (error) {
+            console.error('AI识别失败:', error);
+            this.showToast('AI识别失败: ' + (error.message || '请检查模型配置'));
+        } finally {
+            document.getElementById('btn-ai-parse').disabled = false;
+            document.getElementById('btn-ai-parse').textContent = '🤖 识别任务';
+        }
+    },
+    
+    // 渲染AI任务预览
+    async renderAITasksPreview(tasks) {
+        const lists = await API.getLists();
+        const listsData = lists.data || [];
+        
+        const preview = document.getElementById('ai-tasks-preview');
+        preview.innerHTML = tasks.map((task, index) => {
+            const listOptions = listsData.map(list => {
+                const isSelected = list.name === task.list_name || (task.list_name === '任务' && list.id == 1);
+                return `<option value="${list.id}" ${isSelected ? 'selected' : ''}>${this.escapeHtml(list.name)}</option>`;
+            }).join('');
+            
+            const steps = task.steps || [];
+            const stepsHtml = steps.map((step, stepIndex) => `
+                <div class="step-item">
+                    <input type="text" value="${this.escapeHtml(step)}" data-task-index="${index}" data-step-index="${stepIndex}">
+                    <button type="button" class="btn-remove-step" onclick="this.parentElement.remove()">×</button>
+                </div>
+            `).join('');
+            
+            return `
+                <div class="ai-task-card" data-index="${index}">
+                    <div class="task-card-header">
+                        <input type="text" class="task-title-input" value="${this.escapeHtml(task.title)}" data-task-index="${index}">
+                        <button type="button" class="btn-remove-task" onclick="this.closest('.ai-task-card').remove()">×</button>
+                    </div>
+                    <div class="task-card-body">
+                        <div class="form-group">
+                            <label>分配到列表</label>
+                            <select class="task-list-select" data-task-index="${index}">
+                                ${listOptions}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>完成时限</label>
+                            <input type="date" class="task-due-date" value="${task.due_date || ''}" data-task-index="${index}">
+                        </div>
+                        <div class="form-group">
+                            <label>任务步骤</label>
+                            <div class="task-steps-list" data-task-index="${index}">
+                                ${stepsHtml}
+                            </div>
+                            <button type="button" class="btn-add-step" onclick="App.addStepToPreview(${index})">+ 添加步骤</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+    
+    // 添加步骤到预览
+    addStepToPreview(taskIndex) {
+        const stepsList = document.querySelector(`.task-steps-list[data-task-index="${taskIndex}"]`);
+        const stepIndex = stepsList.children.length;
+        const stepItem = document.createElement('div');
+        stepItem.className = 'step-item';
+        stepItem.innerHTML = `
+            <input type="text" placeholder="步骤描述" data-task-index="${taskIndex}" data-step-index="${stepIndex}">
+            <button type="button" class="btn-remove-step" onclick="this.parentElement.remove()">×</button>
+        `;
+        stepsList.appendChild(stepItem);
+    },
+    
+    // 确认导入AI任务
+    async confirmAIImport() {
+        const taskCards = document.querySelectorAll('.ai-task-card');
+        if (taskCards.length === 0) {
+            this.showToast('没有可导入的任务');
+            return;
+        }
+        
+        try {
+            const tasks = [];
+            taskCards.forEach(card => {
+                const index = card.dataset.index;
+                const title = card.querySelector('.task-title-input').value.trim();
+                const listId = card.querySelector('.task-list-select').value;
+                const dueDate = card.querySelector('.task-due-date').value;
+                
+                if (!title) return;
+                
+                // 收集步骤
+                const stepInputs = card.querySelectorAll('.step-item input');
+                const steps = Array.from(stepInputs)
+                    .map(input => input.value.trim())
+                    .filter(step => step.length > 0);
+                
+                tasks.push({ title, listId, dueDate, steps });
+            });
+            
+            if (tasks.length === 0) {
+                this.showToast('请至少填写一个任务标题');
+                return;
+            }
+            
+            // 创建任务
+            for (const task of tasks) {
+                const taskData = {
+                    list_id: task.listId,
+                    title: task.title,
+                    due_date: task.dueDate || null
+                };
+                
+                const result = await API.createTask(taskData);
+                const taskId = result.data.id;
+                
+                // 创建步骤
+                for (const stepTitle of task.steps) {
+                    await API.createStep({ task_id: taskId, title: stepTitle });
+                }
+            }
+            
+            this.showToast(`成功导入 ${tasks.length} 个任务`);
+            document.getElementById('ai-import-modal').style.display = 'none';
+            
+            // 刷新任务列表
+            await this.loadTasks();
+            await this.loadLists();
+            this.scheduleCountUpdate();
+            
+        } catch (error) {
+            console.error('导入任务失败:', error);
+            this.showToast('导入失败');
         }
     }
 };
