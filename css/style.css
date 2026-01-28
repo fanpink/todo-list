@@ -1120,3 +1120,82 @@ body {
 .ai-loading small {
     color: var(--text-tertiary);
 }
+
+/* 循环规则样式 */
+.form-hint {
+    margin-left: 8px;
+    color: var(--text-tertiary);
+    font-size: 12px;
+}
+
+.recurrence-preview {
+    margin-top: 20px;
+    padding: 16px;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.recurrence-preview h4 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.recurrence-preview .rule-summary {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.recurrence-preview .rule-dates {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.recurrence-preview .rule-dates h5 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+
+.recurrence-preview .dates-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.recurrence-preview .date-tag {
+    padding: 4px 8px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--text-primary);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #b02a2e;
+}
+
+/* 循环任务徽章 */
+.recurrence-badge {
+    color: var(--primary-color);
+    background-color: rgba(37, 100, 207, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.recurrence-badge .icon {
+    width: 14px;
+    height: 14px;
+}

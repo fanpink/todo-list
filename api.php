@@ -5,6 +5,7 @@
  */
 
 require_once './config.php';
+require_once './recurrence_helper.php';
 
 $method = getMethod();
 $action = $_GET['action'] ?? '';
@@ -41,6 +42,19 @@ switch ($action) {
     // ========== AI任务识别 ==========
     case 'ai_parse_tasks':
         handleAIParseTasks($db, $method);
+        break;
+    
+    // ========== 循环规则相关 ==========
+    case 'recurrence_rules':
+        handleRecurrenceRules($db, $method, $id);
+        break;
+    
+    case 'generate_recurrence_tasks':
+        handleGenerateRecurrenceTasks($db, $method);
+        break;
+    
+    case 'recurrence_tasks':
+        handleRecurrenceTasks($db, $method, $id);
         break;
     
     default:
@@ -829,6 +843,430 @@ function saveAIHistory($db, $inputText, $outputJson, $modelId) {
         $stmt->execute();
     } catch (Exception $e) {
         // 忽略历史记录保存失败
+    }
+}
+
+/**
+ * 处理循环规则相关操作
+ */
+function handleRecurrenceRules($db, $method, $id) {
+    switch ($method) {
+        case 'GET':
+            if ($id) {
+                $stmt = $db->prepare('SELECT * FROM recurrence_rules WHERE id = :id');
+                $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+                $result = $stmt->execute();
+                $rule = $result->fetchArray(SQLITE3_ASSOC);
+                
+                if ($rule) {
+                    success($rule);
+                } else {
+                    error('循环规则不存在', 404);
+                }
+            } else {
+                $taskId = $_GET['task_id'] ?? null;
+                $sql = 'SELECT * FROM recurrence_rules';
+                if ($taskId) {
+                    $sql .= ' WHERE task_id = :task_id';
+                }
+                $sql .= ' ORDER BY id DESC';
+                
+                $stmt = $db->prepare($sql);
+                if ($taskId) {
+                    $stmt->bindValue(':task_id', $taskId, SQLITE3_INTEGER);
+                }
+                $result = $stmt->execute();
+                
+                $rules = [];
+                while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                    $rules[] = $row;
+                }
+                success($rules);
+            }
+            break;
+        
+        case 'POST':
+            $input = getInput();
+            validateRequired($input, ['task_id', 'recurrence_type']);
+            
+            $validation = RecurrenceHelper::validateRule($input);
+            if (!$validation['valid']) {
+                error('循环规则验证失败: ' . implode(', ', $validation['errors']));
+            }
+            
+            $stmt = $db->prepare('
+                INSERT INTO recurrence_rules (task_id, recurrence_type, interval, end_type, end_count, end_date) 
+                VALUES (:task_id, :recurrence_type, :interval, :end_type, :end_count, :end_date)
+            ');
+            $stmt->bindValue(':task_id', $input['task_id'], SQLITE3_INTEGER);
+            $stmt->bindValue(':recurrence_type', $input['recurrence_type'], SQLITE3_TEXT);
+            $stmt->bindValue(':interval', $input['interval'] ?? 1, SQLITE3_INTEGER);
+            $stmt->bindValue(':end_type', $input['end_type'] ?? RecurrenceHelper::END_TYPE_NEVER, SQLITE3_TEXT);
+            $stmt->bindValue(':end_count', $input['end_count'] ?? null, SQLITE3_INTEGER);
+            $stmt->bindValue(':end_date', $input['end_date'] ?? null, SQLITE3_TEXT);
+            
+            if ($stmt->execute()) {
+                $newId = $db->lastInsertRowID();
+                
+                // 更新任务关联循环规则
+                $updateStmt = $db->prepare('UPDATE tasks SET recurrence_rule_id = :rule_id WHERE id = :task_id');
+                $updateStmt->bindValue(':rule_id', $newId, SQLITE3_INTEGER);
+                $updateStmt->bindValue(':task_id', $input['task_id'], SQLITE3_INTEGER);
+                $updateStmt->execute();
+                
+                success(['id' => $newId], '循环规则创建成功');
+            } else {
+                error('循环规则创建失败');
+            }
+            break;
+        
+        case 'PUT':
+            if (!$id) error('缺少循环规则ID');
+            
+            $input = getInput();
+            
+            $updates = [];
+            $params = [];
+            
+            $allowedFields = ['recurrence_type', 'interval', 'end_type', 'end_count', 'end_date'];
+            
+            foreach ($allowedFields as $field) {
+                if (isset($input[$field])) {
+                    $updates[] = "$field = :$field";
+                    $params[":$field"] = $input[$field];
+                }
+            }
+            
+            $updates[] = 'updated_at = CURRENT_TIMESTAMP';
+            
+            if (empty($updates)) error('没有可更新的字段');
+            
+            $sql = 'UPDATE recurrence_rules SET ' . implode(', ', $updates) . ' WHERE id = :id';
+            $stmt = $db->prepare($sql);
+            $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+            
+            foreach ($params as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            
+            if ($stmt->execute()) {
+                success(null, '循环规则更新成功');
+            } else {
+                error('循环规则更新失败');
+            }
+            break;
+        
+        case 'DELETE':
+            if (!$id) error('缺少循环规则ID');
+            
+            $stmt = $db->prepare('DELETE FROM recurrence_rules WHERE id = :id');
+            $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+            
+            if ($stmt->execute()) {
+                success(null, '循环规则删除成功');
+            } else {
+                error('循环规则删除失败');
+            }
+            break;
+        
+        default:
+            error('不支持的请求方法', 405);
+    }
+}
+
+/**
+ * 处理生成循环任务
+ */
+function handleGenerateRecurrenceTasks($db, $method) {
+    if ($method !== 'POST') error('不支持的请求方法', 405);
+    
+    $input = getInput();
+    validateRequired($input, ['task_id']);
+    
+    $taskId = $input['task_id'];
+    $limit = $input['limit'] ?? 50;
+    
+    // 获取原任务信息
+    $stmt = $db->prepare('SELECT * FROM tasks WHERE id = :task_id');
+    $stmt->bindValue(':task_id', $taskId, SQLITE3_INTEGER);
+    $result = $stmt->execute();
+    $originalTask = $result->fetchArray(SQLITE3_ASSOC);
+    
+    if (!$originalTask) {
+        error('任务不存在', 404);
+    }
+    
+    // 获取循环规则
+    $ruleId = $originalTask['recurrence_rule_id'];
+    if (!$ruleId) {
+        error('该任务没有设置循环规则');
+    }
+    
+    $stmt = $db->prepare('SELECT * FROM recurrence_rules WHERE id = :rule_id');
+    $stmt->bindValue(':rule_id', $ruleId, SQLITE3_INTEGER);
+    $result = $stmt->execute();
+    $rule = $result->fetchArray(SQLITE3_ASSOC);
+    
+    if (!$rule) {
+        error('循环规则不存在');
+    }
+    
+    // 获取已生成的实例数量
+    $stmt = $db->prepare('SELECT COUNT(*) as count FROM tasks WHERE recurrence_parent_id = :task_id');
+    $stmt->bindValue(':task_id', $taskId, SQLITE3_INTEGER);
+    $result = $stmt->execute();
+    $countRow = $result->fetchArray(SQLITE3_ASSOC);
+    $existingCount = $countRow['count'];
+    
+    // 生成日期
+    $startDate = $originalTask['due_date'] ?? date('Y-m-d');
+    $dates = RecurrenceHelper::generateAllDates(
+        $startDate,
+        $rule['recurrence_type'],
+        $rule['interval'],
+        $rule['end_type'],
+        $rule['end_count'],
+        $rule['end_date'],
+        $limit
+    );
+    
+    // 创建任务实例
+    $db->exec('BEGIN TRANSACTION');
+    
+    try {
+        $createdTasks = [];
+        
+        foreach ($dates as $dateInfo) {
+            $occurrence = $dateInfo['occurrence'];
+            $dueDate = $dateInfo['date'];
+            
+            // 检查是否已存在该日期的实例
+            $checkStmt = $db->prepare('
+                SELECT id FROM tasks 
+                WHERE recurrence_parent = :task_id AND due_date = :due_date
+            ');
+            $checkStmt->bindValue(':task_id', $taskId, SQLITE3_INTEGER);
+            $checkStmt->bindValue(':due_date', $dueDate, SQLITE3_TEXT);
+            $checkResult = $checkStmt->execute();
+            
+            if ($checkResult->fetchArray(SQLITE3_ASSOC)) {
+                continue;
+            }
+            
+            // 创建新任务实例
+            $insertStmt = $db->prepare('
+                INSERT INTO tasks (
+                    list_id, title, note, is_important, is_my_day, due_date, 
+                    reminder_time, repeat_rule, sort_order, recurrence_rule_id, 
+                    is_recurrence_instance, recurrence_parent_id
+                ) VALUES (
+                    :list_id, :title, :note, :is_important, :is_my_day, :due_date,
+                    :reminder_time, :repeat_rule, :sort_order, :recurrence_rule_id,
+                    1, :recurrence_parent_id
+                )
+            ');
+            
+            $insertStmt->bindValue(':list_id', $originalTask['list_id'], SQLITE3_INTEGER);
+            $insertStmt->bindValue(':title', $originalTask['title'], SQLITE3_TEXT);
+            $insertStmt->bindValue(':note', $originalTask['note'], SQLITE3_TEXT);
+            $insertStmt->bindValue(':is_important', $originalTask['is_important'], SQLITE3_INTEGER);
+            $insertStmt->bindValue(':is_my_day', $originalTask['is_my_day'], SQLITE3_INTEGER);
+            $insertStmt->bindValue(':due_date', $dueDate, SQLITE3_TEXT);
+            $insertStmt->bindValue(':reminder_time', $originalTask['reminder_time'], SQLITE3_TEXT);
+            $insertStmt->bindValue(':repeat_rule', $originalTask['repeat_rule'], SQLITE3_TEXT);
+            $insertStmt->bindValue(':sort_order', $originalTask['sort_order'], SQLITE3_INTEGER);
+            $insertStmt->bindValue(':recurrence_rule_id', $ruleId, SQLITE3_INTEGER);
+            $insertStmt->bindValue(':recurrence_parent_id', $taskId, SQLITE3_INTEGER);
+            
+            if ($insertStmt->execute()) {
+                $newTaskId = $db->lastInsertRowID();
+                $createdTasks[] = [
+                    'id' => $newTaskId,
+                    'due_date' => $dueDate,
+                    'occurrence' => $occurrence
+                ];
+            }
+        }
+        
+        $db->exec('COMMIT');
+        
+        success($createdTasks, '成功生成 ' . count($createdTasks) . ' 个循环任务');
+        
+    } catch (Exception $e) {
+        $db->exec('ROLLBACK');
+        error('生成循环任务失败: ' . $e->getMessage());
+    }
+}
+
+/**
+ * 处理循环任务操作（修改/删除）
+ */
+function handleRecurrenceTasks($db, $method, $id) {
+    if (!$id) error('缺少任务ID');
+    
+    // 获取任务信息
+    $stmt = $db->prepare('SELECT * FROM tasks WHERE id = :id');
+    $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+    $result = $stmt->execute();
+    $task = $result->fetchArray(SQLITE3_ASSOC);
+    
+    if (!$task) {
+        error('任务不存在', 404);
+    }
+    
+    $input = getInput();
+    $scope = $input['scope'] ?? 'single';
+    
+    if ($method === 'DELETE') {
+        switch ($scope) {
+            case 'single':
+                // 只删除当前任务
+                $stmt = $db->prepare('DELETE FROM tasks WHERE id = :id');
+                $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+                $stmt->execute();
+                success(null, '任务删除成功');
+                break;
+            
+            case 'series':
+                // 删除整个循环系列（包括原任务和所有实例）
+                $parentId = $task['recurrence_parent_id'] ?? $id;
+                $stmt = $db->prepare('DELETE FROM tasks WHERE id = :parent_id OR recurrence_parent_id = :parent_id');
+                $stmt->bindValue(':parent_id', $parentId, SQLITE3_INTEGER);
+                $stmt->execute();
+                success(null, '循环系列删除成功');
+                break;
+            
+            case 'future':
+                // 删除当前任务及之后的所有实例
+                if ($task['is_recurrence_instance']) {
+                    $dueDate = $task['due_date'];
+                    $parentId = $task['recurrence_parent_id'];
+                    
+                    $stmt = $db->prepare('
+                        DELETE FROM tasks 
+                        WHERE (id = :id OR (recurrence_parent_id = :parent_id AND due_date >= :due_date))
+                    ');
+                    $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+                    $stmt->bindValue(':parent_id', $parentId, SQLITE3_INTEGER);
+                    $stmt->bindValue(':due_date', $dueDate, SQLITE3_TEXT);
+                    $stmt->execute();
+                } else {
+                    // 如果是原任务，删除整个系列
+                    $stmt = $db->prepare('DELETE FROM tasks WHERE id = :id OR recurrence_parent_id = :id');
+                    $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+                    $stmt->execute();
+                }
+                success(null, '当前及后续任务删除成功');
+                break;
+            
+            default:
+                error('无效的作用域');
+        }
+    }
+    
+    if ($method === 'PUT') {
+        switch ($scope) {
+            case 'single':
+                // 只修改当前任务
+                $updates = [];
+                $params = [];
+                
+                $allowedFields = ['title', 'note', 'is_completed', 'is_important', 'is_my_day', 'due_date', 'reminder_time', 'list_id'];
+                
+                foreach ($allowedFields as $field) {
+                    if (isset($input[$field])) {
+                        $updates[] = "$field = :$field";
+                        $params[":$field"] = $input[$field];
+                    }
+                }
+                
+                if (!empty($updates)) {
+                    $sql = 'UPDATE tasks SET ' . implode(', ', $updates) . ' WHERE id = :id';
+                    $stmt = $db->prepare($sql);
+                    $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+                    
+                    foreach ($params as $key => $value) {
+                        $stmt->bindValue($key, $value);
+                    }
+                    
+                    $stmt->execute();
+                }
+                success(null, '任务更新成功');
+                break;
+            
+            case 'series':
+                // 修改整个循环系列
+                $updates = [];
+                $params = [];
+                
+                $allowedFields = ['title', 'note', 'is_important', 'reminder_time', 'list_id'];
+                
+                foreach ($allowedFields as $field) {
+                    if (isset($input[$field])) {
+                        $updates[] = "$field = :$field";
+                        $params[":$field"] = $input[$field];
+                    }
+                }
+                
+                if (!empty($updates)) {
+                    $parentId = $task['recurrence_parent_id'] ?? $id;
+                    $sql = 'UPDATE tasks SET ' . implode(', ', $updates) . ' WHERE id = :parent_id OR recurrence_parent_id = :parent_id';
+                    $stmt = $db->prepare($sql);
+                    $stmt->bindValue(':parent_id', $parentId, SQLITE3_INTEGER);
+                    
+                    foreach ($params as $key => $value) {
+                        $stmt->bindValue($key, $value);
+                    }
+                    
+                    $stmt->execute();
+                }
+                success(null, '循环系列更新成功');
+                break;
+            
+            case 'future':
+                // 修改当前任务及之后的所有实例
+                $updates = [];
+                $params = [];
+                
+                $allowedFields = ['title', 'note', 'is_important', 'reminder_time', 'list_id'];
+                
+                foreach ($allowedFields as $field) {
+                    if (isset($input[$field])) {
+                        $updates[] = "$field = :$field";
+                        $params[":$field"] = $input[$field];
+                    }
+                }
+                
+                if (!empty($updates)) {
+                    if ($task['is_recurrence_instance']) {
+                        $dueDate = $task['due_date'];
+                        $parentId = $task['recurrence_parent_id'];
+                        
+                        $sql = 'UPDATE tasks SET ' . implode(', ', $updates) . ' 
+                                WHERE (id = :id OR (recurrence_parent_id = :parent_id AND due_date >= :due_date))';
+                        $stmt = $db->prepare($sql);
+                        $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+                        $stmt->bindValue(':parent_id', $parentId, SQLITE3_INTEGER);
+                        $stmt->bindValue(':due_date', $dueDate, SQLITE3_TEXT);
+                    } else {
+                        // 如果是原任务，修改整个系列
+                        $sql = 'UPDATE tasks SET ' . implode(', ', $updates) . ' WHERE id = :id OR recurrence_parent_id = :id';
+                        $stmt = $db->prepare($sql);
+                        $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+                    }
+                    
+                    foreach ($params as $key => $value) {
+                        $stmt->bindValue($key, $value);
+                    }
+                    
+                    $stmt->execute();
+                }
+                success(null, '当前及后续任务更新成功');
+                break;
+            
+            default:
+                error('无效的作用域');
+        }
     }
 }
 

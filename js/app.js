@@ -10,7 +10,8 @@ const App = {
         currentListId: null,
         lists: [],
         tasks: [],
-        selectedTask: null
+        selectedTask: null,
+        currentRecurrenceTaskId: null
     },
 
     // 初始化应用
@@ -132,6 +133,39 @@ const App = {
         // 确认导入按钮
         document.getElementById('btn-confirm-import').addEventListener('click', () => {
             this.confirmAIImport();
+        });
+        
+        // 循环规则弹窗事件
+        document.getElementById('btn-close-recurrence-modal').addEventListener('click', () => {
+            document.getElementById('recurrence-modal').style.display = 'none';
+        });
+        
+        document.getElementById('btn-cancel-recurrence').addEventListener('click', () => {
+            document.getElementById('recurrence-modal').style.display = 'none';
+        });
+        
+        document.getElementById('recurrence-type').addEventListener('change', () => {
+            this.updateRecurrenceUI();
+        });
+        
+        document.getElementById('recurrence-interval').addEventListener('input', () => {
+            this.updateRecurrenceUI();
+        });
+        
+        document.getElementById('recurrence-end-type').addEventListener('change', () => {
+            this.updateRecurrenceUI();
+        });
+        
+        document.getElementById('btn-save-recurrence').addEventListener('click', () => {
+            if (this.state.currentRecurrenceTaskId) {
+                this.saveRecurrenceRule(this.state.currentRecurrenceTaskId);
+            }
+        });
+        
+        document.getElementById('btn-remove-recurrence').addEventListener('click', () => {
+            if (this.state.currentRecurrenceTaskId) {
+                this.removeRecurrenceRule(this.state.currentRecurrenceTaskId);
+            }
         });
     },
 
@@ -356,6 +390,14 @@ const App = {
                 </svg>
                 ${task.steps_completed}/${task.steps_total}
             </span>` : '';
+        
+        const recurrenceInfo = task.recurrence_rule_id ? 
+            `<span class="task-meta-item recurrence-badge" title="循环任务">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+            </span>` : '';
 
         return `
             <div class="task-item ${task.is_completed ? 'completed' : ''}" 
@@ -365,10 +407,11 @@ const App = {
                 <div class="task-checkbox ${task.is_completed ? 'checked' : ''}" data-task-id="${task.id}"></div>
                 <div class="task-content">
                     <div class="task-title">${this.escapeHtml(task.title)}</div>
-                    ${(dueDate || stepsInfo) ? `
+                    ${(dueDate || stepsInfo || recurrenceInfo) ? `
                         <div class="task-meta">
                             ${dueDate ? `<span class="task-meta-item">${dueDate}</span>` : ''}
                             ${stepsInfo}
+                            ${recurrenceInfo}
                         </div>
                     ` : ''}
                 </div>
@@ -580,6 +623,16 @@ const App = {
                 </div>
 
                 <div class="detail-section">
+                    <button class="detail-field" id="btn-set-recurrence">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg>
+                        <span>设置循环</span>
+                    </button>
+                </div>
+
+                <div class="detail-section">
                     <div class="detail-label">备注</div>
                     <textarea class="detail-textarea" id="detail-note" placeholder="添加备注">${task.note || ''}</textarea>
                 </div>
@@ -644,6 +697,12 @@ const App = {
             await API.updateTask(task.id, { due_date: e.target.value || null });
             await this.loadTasks();
             this.scheduleCountUpdate();
+        });
+
+        // 设置循环
+        document.getElementById('btn-set-recurrence').addEventListener('click', async () => {
+            this.state.currentRecurrenceTaskId = task.id;
+            await this.showRecurrenceModal(task.id);
         });
 
         // 备注
@@ -970,6 +1029,183 @@ ${message}
 请按照以上步骤启用 SQLite3 扩展后重启 PHP 服务器。`);
         } else {
             alert(`❗ ${title}\n\n${message}`);
+        }
+    },
+    
+    // ========== 循环规则功能 ==========
+    
+    // 显示循环规则配置弹窗
+    async showRecurrenceModal(taskId) {
+        document.getElementById('recurrence-modal').style.display = 'flex';
+        this.state.currentRecurrenceTaskId = taskId;
+        
+        // 加载任务的循环规则
+        try {
+            const result = await API.getRecurrenceRules(taskId);
+            const rules = result.data || [];
+            
+            if (rules.length > 0) {
+                const rule = rules[0];
+                document.getElementById('recurrence-type').value = rule.recurrence_type;
+                document.getElementById('recurrence-interval').value = rule.interval;
+                document.getElementById('recurrence-end-type').value = rule.end_type;
+                document.getElementById('recurrence-end-count').value = rule.end_count || 10;
+                document.getElementById('recurrence-end-date').value = rule.end_date || '';
+                document.getElementById('btn-remove-recurrence').style.display = 'inline-block';
+            } else {
+                this.resetRecurrenceForm();
+                document.getElementById('btn-remove-recurrence').style.display = 'none';
+            }
+            
+            this.updateRecurrenceUI();
+            await this.previewRecurrenceRule(taskId);
+        } catch (error) {
+            console.error('加载循环规则失败:', error);
+        }
+    },
+    
+    // 重置循环规则表单
+    resetRecurrenceForm() {
+        document.getElementById('recurrence-type').value = 'weekly';
+        document.getElementById('recurrence-interval').value = 1;
+        document.getElementById('recurrence-end-type').value = 'never';
+        document.getElementById('recurrence-end-count').value = 10;
+        document.getElementById('recurrence-end-date').value = '';
+        this.updateRecurrenceUI();
+    },
+    
+    // 更新循环规则UI
+    updateRecurrenceUI() {
+        const interval = document.getElementById('recurrence-interval').value;
+        document.getElementById('interval-display').textContent = interval;
+        
+        const endType = document.getElementById('recurrence-end-type').value;
+        document.getElementById('end-count-group').style.display = endType === 'count' ? 'block' : 'none';
+        document.getElementById('end-date-group').style.display = endType === 'date' ? 'block' : 'none';
+    },
+    
+    // 预览循环规则
+    async previewRecurrenceRule(taskId) {
+        const type = document.getElementById('recurrence-type').value;
+        const interval = parseInt(document.getElementById('recurrence-interval').value);
+        const endType = document.getElementById('recurrence-end-type').value;
+        const endCount = parseInt(document.getElementById('recurrence-end-count').value);
+        const endDate = document.getElementById('recurrence-end-date').value;
+        
+        const preview = document.getElementById('recurrence-preview');
+        
+        // 获取任务信息以获取起始日期
+        try {
+            const taskResult = await API.getTask(taskId);
+            const task = taskResult.data;
+            const startDate = task.due_date || new Date().toISOString().split('T')[0];
+            
+            // 生成预览日期
+            const dates = [];
+            let currentDate = new Date(startDate);
+            let count = 0;
+            const maxPreview = 10;
+            
+            while (count < maxPreview) {
+                if (endType === 'count' && count >= endCount) break;
+                if (endType === 'date' && currentDate.toISOString().split('T')[0] > endDate) break;
+                
+                dates.push(currentDate.toISOString().split('T')[0]);
+                
+                // 计算下一个日期
+                switch (type) {
+                    case 'daily':
+                        currentDate.setDate(currentDate.getDate() + interval);
+                        break;
+                    case 'weekly':
+                        currentDate.setDate(currentDate.getDate() + (interval * 7));
+                        break;
+                    case 'monthly':
+                        currentDate.setMonth(currentDate.getMonth() + interval);
+                        break;
+                    case 'yearly':
+                        currentDate.setFullYear(currentDate.getFullYear() + interval);
+                        break;
+                }
+                
+                count++;
+            }
+            
+            const typeNames = {
+                daily: '每天',
+                weekly: '每周',
+                monthly: '每月',
+                yearly: '每年'
+            };
+            
+            const endTypeNames = {
+                never: '永不结束',
+                count: `重复${endCount}次`,
+                date: `直到${endDate}`
+            };
+            
+            preview.innerHTML = `
+                <h4>循环规则预览</h4>
+                <div class="rule-summary">
+                    <strong>${typeNames[type]}</strong>
+                    ${interval > 1 ? `，每${interval}个周期` : ''}
+                    ，${endTypeNames[endType]}
+                </div>
+                <div class="rule-dates">
+                    <h5>即将生成的任务日期（前${dates.length}个）：</h5>
+                    <div class="dates-list">
+                        ${dates.map(date => `<span class="date-tag">${date}</span>`).join('')}
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('预览循环规则失败:', error);
+        }
+    },
+    
+    // 保存循环规则
+    async saveRecurrenceRule(taskId) {
+        const data = {
+            task_id: taskId,
+            recurrence_type: document.getElementById('recurrence-type').value,
+            interval: parseInt(document.getElementById('recurrence-interval').value),
+            end_type: document.getElementById('recurrence-end-type').value,
+            end_count: document.getElementById('recurrence-end-type').value === 'count' ? 
+                parseInt(document.getElementById('recurrence-end-count').value) : null,
+            end_date: document.getElementById('recurrence-end-type').value === 'date' ? 
+                document.getElementById('recurrence-end-date').value : null
+        };
+        
+        try {
+            await API.createRecurrenceRule(data);
+            this.showToast('循环规则设置成功');
+            document.getElementById('recurrence-modal').style.display = 'none';
+            this.loadTasks();
+        } catch (error) {
+            console.error('保存循环规则失败:', error);
+            this.showToast('保存失败: ' + (error.message || '未知错误'));
+        }
+    },
+    
+    // 移除循环规则
+    async removeRecurrenceRule(taskId) {
+        if (!confirm('确定要移除循环规则吗？已生成的循环任务将被保留。')) {
+            return;
+        }
+        
+        try {
+            const result = await API.getRecurrenceRules(taskId);
+            const rules = result.data || [];
+            
+            if (rules.length > 0) {
+                await API.deleteRecurrenceRule(rules[0].id);
+                this.showToast('循环规则已移除');
+                document.getElementById('recurrence-modal').style.display = 'none';
+                this.loadTasks();
+            }
+        } catch (error) {
+            console.error('移除循环规则失败:', error);
+            this.showToast('移除失败');
         }
     },
     

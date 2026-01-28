@@ -237,5 +237,64 @@ const API = {
      */
     async aiParseTasks(data) {
         return await this.request('ai_parse_tasks', { method: 'POST', data });
+    },
+    
+    // ========== 循环规则相关 ==========
+    
+    /**
+     * 获取循环规则列表
+     */
+    async getRecurrenceRules(taskId = null) {
+        const params = taskId ? { task_id: taskId } : {};
+        return await this.request('recurrence_rules', { params });
+    },
+    
+    /**
+     * 获取单个循环规则
+     */
+    async getRecurrenceRule(id) {
+        return await this.request('recurrence_rules', { params: { id } });
+    },
+    
+    /**
+     * 创建循环规则
+     */
+    async createRecurrenceRule(data) {
+        return await this.request('recurrence_rules', { method: 'POST', data });
+    },
+    
+    /**
+     * 更新循环规则
+     */
+    async updateRecurrenceRule(id, data) {
+        return await this.request('recurrence_rules', { method: 'PUT', params: { id }, data });
+    },
+    
+    /**
+     * 删除循环规则
+     */
+    async deleteRecurrenceRule(id) {
+        return await this.request('recurrence_rules', { method: 'DELETE', params: { id } });
+    },
+    
+    /**
+     * 生成循环任务
+     */
+    async generateRecurrenceTasks(taskId, limit = 50) {
+        return await this.request('generate_recurrence_tasks', { method: 'POST', data: { task_id: taskId, limit } });
+    },
+    
+    /**
+     * 修改/删除循环任务
+     */
+    async updateRecurrenceTask(taskId, data, scope = 'single') {
+        return await this.request('recurrence_tasks', { method: 'PUT', params: { id: taskId }, data: { ...data, scope } });
+    },
+    
+    /**
+     * 删除循环任务
+     */
+    async deleteRecurrenceTask(taskId, scope = 'single') {
+        return await this.request('recurrence_tasks', { method: 'DELETE', params: { id: taskId }, data: { scope } });
     }
 };

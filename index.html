@@ -299,6 +299,56 @@
             </div>
         </div>
     </div>
+    
+    <!-- 循环规则配置弹窗 -->
+    <div class="modal" id="recurrence-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>设置循环规则</h2>
+                <button class="btn-close" id="btn-close-recurrence-modal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>循环类型</label>
+                    <select id="recurrence-type">
+                        <option value="daily">每天</option>
+                        <option value="weekly">每周</option>
+                        <option value="monthly">每月</option>
+                        <option value="yearly">每年</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>循环间隔</label>
+                    <input type="number" id="recurrence-interval" min="1" value="1">
+                    <span class="form-hint">每 <span id="interval-display">1</span> 个周期</span>
+                </div>
+                <div class="form-group">
+                    <label>结束条件</label>
+                    <select id="recurrence-end-type">
+                        <option value="never">永不结束</option>
+                        <option value="count">指定次数</option>
+                        <option value="date">指定日期</option>
+                    </select>
+                </div>
+                <div class="form-group" id="end-count-group" style="display: none;">
+                    <label>结束次数</label>
+                    <input type="number" id="recurrence-end-count" min="1" value="10">
+                </div>
+                <div class="form-group" id="end-date-group" style="display: none;">
+                    <label>结束日期</label>
+                    <input type="date" id="recurrence-end-date">
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" id="btn-save-recurrence">保存循环规则</button>
+                    <button class="btn btn-danger" id="btn-remove-recurrence" style="display: none;">移除循环</button>
+                    <button class="btn" id="btn-cancel-recurrence">取消</button>
+                </div>
+                <div class="recurrence-preview" id="recurrence-preview">
+                    <!-- 循环规则预览 -->
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- 使用相对路径引入 JS -->
     <script src="./js/api.js"></script>
